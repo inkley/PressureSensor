@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<?ccsproject version="1.0"?>
+<projectOptions>
+	<ccsVariant value="0:Eclipse-based"/>
+	<ccsVersion value="12.6.0"/>
+	<deviceVariant value="Cortex M.TM4C123GE6PM"/>
+	<deviceFamily value="TMS470"/>
+	<deviceEndianness value="little"/>
+	<codegenToolVersion value="20.2.7.LTS"/>
+	<isElfFormat value="true"/>
+	<connection value="common/targetdb/connections/TIXDS2XXUSB_onboard_Connection.xml"/>
+	<linkerCommandFile value="tm4c123ge6pm.cmd"/>
+	<rts value="libc.a"/>
+	<createSlaveProjects value=""/>
+	<templateProperties value="id=com.ti.common.project.core.emptyProjectWithMainTemplate"/>
+	<filesToOpen value="main.c"/>
+	<isTargetManual value="false"/>
+	<origin value="/Users/Tyler/Desktop/RESEARCH/1 Sensor Module/Electronics/Upwork/Inkley_Modules_09_17_24_CCS/Inkley_PressureSensor"/>
+</projectOptions>
