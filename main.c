@@ -40,20 +40,18 @@ uint32_t BuildVersion  = 1002;
 #define SLAVE_ADDRESS 0x3C
 
 //Inkley Sensor Commands
-#define icmdReadVersion         01 // Read Version
-#define icmdReadData            02 // Sensor Read Data
-#define icmdFlashStart          03 // Start recording data into flash
-#define icmdFlashReadPos        04 // Read Flash at position
-#define icmdFlashEraseFull      05 // Erase Flash
-#define icmdFlashSetSampleSize  06 //Set flash sample size.
-#define icmdFlashStatus         07// Get Status of flash reading. Read percent 100 means done.
-
+#define icmdReadVersion         01  // Read Version
+#define icmdReadData            02  // Sensor Read Data
+#define icmdFlashStart          03  // Start recording data into flash
+#define icmdFlashReadPos        04  // Read Flash at position
+#define icmdFlashEraseFull      05  // Erase Flash
+#define icmdFlashSetSampleSize  06  // Set flash sample size.
+#define icmdFlashStatus         07  // Get Status of flash reading. Read percent 100 means done.
 
 #define SYSTICK_TIMING   1000 //1000 = 1mS   1 = 1 second  10 = 100mS 100 = 10mS
 
 #define ADC_ReadTimeOut 100
 #define I2C_TimeOut 10000
-
 
 uint32_t GlobalTimer=0;
 #define HeartBeatTime 10000 // In MilliSeconds.
@@ -66,7 +64,6 @@ uint32_t HeatbeatTrigger=0;
 #define FlashUserSpace  0x30000
 uint32_t FlashIndex=0x40000;
 uint32_t FlashSampleSize=0x10000;
-
 
 int TimeOutClock = 0;
 int I2C_TimeOutClock = 0;
@@ -190,9 +187,7 @@ SysTickIntHandler(void)
         }
     }
 
-
     ADCIntClear(ADC0_BASE, 3);
-
 
     ADCSequenceDataGet(ADC0_BASE, 3, pui32ADC0Value);
     circ_bbuf_push(&SensorBuf,pui32ADC0Value[0]);
@@ -233,30 +228,23 @@ I2C0SlaveIntHandler(void)
 
 void Init_ADC()
 {
-
     SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
 
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
 
     GPIOPinTypeADC(GPIO_PORTE_BASE, GPIO_PIN_3 | GPIO_PIN_2);
 
-
     ADCSequenceConfigure(ADC0_BASE, 3, ADC_TRIGGER_PROCESSOR, 0);
 
-    ADCSequenceStepConfigure(ADC0_BASE, 3, 0, ADC_CTL_D | ADC_CTL_CH0 |
-
-                                  ADC_CTL_IE | ADC_CTL_END);
+    ADCSequenceStepConfigure(ADC0_BASE, 3, 0, ADC_CTL_D | ADC_CTL_CH0 | ADC_CTL_IE | ADC_CTL_END);
 
     ADCSequenceEnable(ADC0_BASE, 3);
-
 
     ADCIntClear(ADC0_BASE, 3);
 }
 
 void Init_Systick (void)
 {
-
-
     SysTickPeriodSet(SysCtlClockGet()/SYSTICK_TIMING); //Set SYSTICK to interrupt every 1mS
 
     //
@@ -344,9 +332,6 @@ void Init_I2C(void)
         // I2CMasterSlaveAddrSet function.
         //
         I2CSlaveInit(I2C0_BASE, SLAVE_ADDRESS);
-
-
-
 }
 
 void I2C_SendData(uint32_t SData)
@@ -391,7 +376,6 @@ void I2C_SendData(uint32_t SData)
 
 uint32_t CANPollCheck(unsigned char *candata,int MsgID,unsigned char Response)
 {
-
     int rValue=0;
     uint32_t ulNewData;
 
@@ -411,11 +395,8 @@ uint32_t CANPollCheck(unsigned char *candata,int MsgID,unsigned char Response)
            rValue++;
            ulNewData = CANStatusGet(CAN0_BASE, CAN_STS_NEWDAT);
      }
-
     return rValue;
 }
-
-
 
 void IntCAN0Handler(void)
 {
@@ -426,7 +407,6 @@ void IntCAN0Handler(void)
 
     tempCANMsgObject.pui8MsgData = CANMsg;
     tempCANMsgObject.ui32MsgLen=8;
-
 
     ulStatus = CANIntStatus(CAN0_BASE, CAN_INT_STS_CAUSE);
     CANIntClear(CAN0_BASE, ulStatus);
@@ -460,7 +440,6 @@ void IntCAN0Handler(void)
     }
 }
 
-
 uint32_t CANSendINT(unsigned long CANID, uint32_t pui8MsgData)
 {
         unsigned long TimeOut=0;
@@ -476,7 +455,6 @@ uint32_t CANSendINT(unsigned long CANID, uint32_t pui8MsgData)
         TimeOut=0;
         CANMessageSet(CAN0_BASE, 32, &sCANMessage, MSG_OBJ_TYPE_TX);
 
-
         while(CANStatusGet(CAN0_BASE,CAN_STS_TXREQUEST) !=0)
         {
                 TimeOut++;
@@ -488,6 +466,7 @@ uint32_t CANSendINT(unsigned long CANID, uint32_t pui8MsgData)
         }
         return 0;
 }
+
 uint32_t CANSendMSG(unsigned long CANID, uint8_t *pui8MsgData)
 {
         unsigned long TimeOut=0;
@@ -502,7 +481,6 @@ uint32_t CANSendMSG(unsigned long CANID, uint8_t *pui8MsgData)
 
         TimeOut=0;
         CANMessageSet(CAN0_BASE, 32, &sCANMessage, MSG_OBJ_TYPE_TX);
-
 
         while(CANStatusGet(CAN0_BASE,CAN_STS_TXREQUEST) !=0)
         {
@@ -565,16 +543,13 @@ void Init_CAN(uint32_t Baud)
  */
 int main(void)
 {
-
     uint32_t BufDataVar =0;
     uint32_t CANID_tmp=0;
     uint32_t CANVAL_tmp=0;
     uint8_t CAN_RESP[8];
     uint8_t CAN_CMD_REQUEST=0;
 
-    SysCtlClockSet(SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
-              SYSCTL_XTAL_16MHZ);
-
+    SysCtlClockSet(SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
 
     Init_ADC();
     Init_Systick();
@@ -671,6 +646,7 @@ int main(void)
             bit_clear(CAN_RECV.FLAGS,CAN_F_NEW);
             HeatbeatTrigger=GlobalTimer+HeartBeatTime;
         }
+
         if(bit_check(CAN_RECV.FLAGS,CAN_F_OVERRUN))
         {
             //detected an over run condition
@@ -701,7 +677,6 @@ int main(void)
                 case icmdFlashStart:
                     FlashIndex = FlashUserSpace;
                     break;
-
             }
             I2C_RcvNewCommand=false;
         }
@@ -717,12 +692,10 @@ int main(void)
             CAN_RESP[6] = (uint8_t)(GlobalTimer >> 8);
             CAN_RESP[7] = (uint8_t)(GlobalTimer);
 
-
             CANSendMSG(0x7DF,CAN_RESP);
 
             HeatbeatTrigger=GlobalTimer+HeartBeatTime;
         }
         IntCAN0Handler();
      }
-
 }
