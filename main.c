@@ -1,9 +1,15 @@
-//-----------------------------------------------
-//
-//
-//----------------------------------------------
+/*
+ Author:    Jerry Black
+ User:      Tyler Inkley
 
-
+Inkley_PressureSensor
+• For use with second Evaluation Board (with pressure sensors)
+• Store in some of the flash space on the Tiva chip
+• Allows you to get complete real time data sets from the sensor
+• Still includes a ring buffer in RAM that stores the data
+• If you run the command to get sensor data, it will pull the latest sample
+• Left the I2C routine in the firmware, to allow for some flexibility
+ */
 
 #include <stdbool.h>
 #include <stdint.h>
