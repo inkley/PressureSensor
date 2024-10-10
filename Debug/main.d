@@ -15,8 +15,8 @@ main.obj: /Applications/ti/ccs1240/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/incl
 main.obj: ../inc/hw_memmap.h
 main.obj: ../inc/hw_ints.h
 main.obj: ../inc/hw_can.h
-main.obj: ../driverlib/adc.h
 main.obj: ../inc/hw_i2c.h
+main.obj: ../driverlib/adc.h
 main.obj: ../driverlib/can.h
 main.obj: ../driverlib/gpio.h
 main.obj: ../driverlib/pin_map.h
@@ -25,9 +25,9 @@ main.obj: ../driverlib/sysctl.h
 main.obj: ../driverlib/uart.h
 main.obj: ../driverlib/i2c.h
 main.obj: ../driverlib/systick.h
+main.obj: ../driverlib/flash.h
 main.obj: ../utils/uartstdio.h
 main.obj: /Applications/ti/ccs1240/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stdarg.h
-main.obj: ../driverlib/flash.h
 
 ../main.c:
 
@@ -59,9 +59,9 @@ main.obj: ../driverlib/flash.h
 
 ../inc/hw_can.h:
 
-../driverlib/adc.h:
-
 ../inc/hw_i2c.h:
+
+../driverlib/adc.h:
 
 ../driverlib/can.h:
 
@@ -79,9 +79,9 @@ main.obj: ../driverlib/flash.h
 
 ../driverlib/systick.h:
 
+../driverlib/flash.h:
+
 ../utils/uartstdio.h:
 
 /Applications/ti/ccs1240/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stdarg.h:
-
-../driverlib/flash.h:
 
