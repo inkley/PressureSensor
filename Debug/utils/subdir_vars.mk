@@ -2,6 +2,8 @@
 # Automatically-generated file. Do not edit!
 ################################################################################
 
+SHELL = cmd.exe
+
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
 ../utils/cmdline.c \
@@ -55,38 +57,38 @@ OBJS += \
 ./utils/ustdlib.obj 
 
 OBJS__QUOTED += \
-"utils/cmdline.obj" \
-"utils/cpu_usage.obj" \
-"utils/flash_pb.obj" \
-"utils/isqrt.obj" \
-"utils/random.obj" \
-"utils/ringbuf.obj" \
-"utils/scheduler.obj" \
-"utils/sine.obj" \
-"utils/smbus.obj" \
-"utils/softi2c.obj" \
-"utils/softssi.obj" \
-"utils/softuart.obj" \
-"utils/spi_flash.obj" \
-"utils/uartstdio.obj" \
-"utils/ustdlib.obj" 
+"utils\cmdline.obj" \
+"utils\cpu_usage.obj" \
+"utils\flash_pb.obj" \
+"utils\isqrt.obj" \
+"utils\random.obj" \
+"utils\ringbuf.obj" \
+"utils\scheduler.obj" \
+"utils\sine.obj" \
+"utils\smbus.obj" \
+"utils\softi2c.obj" \
+"utils\softssi.obj" \
+"utils\softuart.obj" \
+"utils\spi_flash.obj" \
+"utils\uartstdio.obj" \
+"utils\ustdlib.obj" 
 
 C_DEPS__QUOTED += \
-"utils/cmdline.d" \
-"utils/cpu_usage.d" \
-"utils/flash_pb.d" \
-"utils/isqrt.d" \
-"utils/random.d" \
-"utils/ringbuf.d" \
-"utils/scheduler.d" \
-"utils/sine.d" \
-"utils/smbus.d" \
-"utils/softi2c.d" \
-"utils/softssi.d" \
-"utils/softuart.d" \
-"utils/spi_flash.d" \
-"utils/uartstdio.d" \
-"utils/ustdlib.d" 
+"utils\cmdline.d" \
+"utils\cpu_usage.d" \
+"utils\flash_pb.d" \
+"utils\isqrt.d" \
+"utils\random.d" \
+"utils\ringbuf.d" \
+"utils\scheduler.d" \
+"utils\sine.d" \
+"utils\smbus.d" \
+"utils\softi2c.d" \
+"utils\softssi.d" \
+"utils\softuart.d" \
+"utils\spi_flash.d" \
+"utils\uartstdio.d" \
+"utils\ustdlib.d" 
 
 C_SRCS__QUOTED += \
 "../utils/cmdline.c" \

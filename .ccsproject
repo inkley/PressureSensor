@@ -15,5 +15,4 @@
 	<templateProperties value="id=com.ti.common.project.core.emptyProjectWithMainTemplate"/>
 	<filesToOpen value="main.c"/>
 	<isTargetManual value="false"/>
-	<origin value="/Users/Tyler/Desktop/RESEARCH/1 Sensor Module/Electronics/Upwork/Inkley_Modules_09_17_24_CCS/Inkley_PressureSensor"/>
 </projectOptions>
