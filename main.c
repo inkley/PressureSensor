@@ -4,15 +4,15 @@
 
 Inkley_PressureSensor
 
-• Designed for use with an evaluation board equipped with pressure sensors.
-• Collects real-time pressure sensor data and temporarily stores it in a circular buffer in RAM.
-• Provides the option to store sensor data permanently in the Tiva chip's flash memory.
-• Supports communication with external modules over the CAN bus for data exchange and control.
-• Implements CAN commands for retrieving sensor data, managing flash memory (start, erase, read), and setting sample sizes.
-• Provides I2C communication for additional command flexibility, allowing interaction with sensor data and memory functions.
-• Sends periodic heartbeat messages over CAN to signal system activity and health.
-• The system is designed to handle overrun conditions in CAN communication and to ensure the integrity of stored data.
-• Includes SysTick-based interrupts for timed operations and ADC sampling for sensor readings.
+• Designed for use with an evaluation board equipped with pressure sensors
+• Collects real-time pressure sensor data and temporarily stores it in a circular buffer in RAM
+• Provides the option to store sensor data permanently in the Tiva chip's flash memory
+• Supports communication with external modules over the CAN bus for data exchange and control
+• Implements CAN commands for retrieving sensor data, managing flash memory (start, erase, read), and setting sample sizes
+• Provides I2C communication for additional command flexibility, allowing interaction with sensor data and memory functions
+• Sends periodic heartbeat messages over CAN to signal system activity and health
+• The system is designed to handle overrun conditions in CAN communication and to ensure the integrity of stored data
+• Includes SysTick-based interrupts for timed operations and ADC sampling for sensor readings
 */
 
 //*****************************************************************************
@@ -63,17 +63,33 @@ uint32_t BuildVersion = 1002;       // Firmware version for this build
 #define SLAVE_ADDRESS 0x3C          // I2C slave address for the sensor module
 
 // Inkley Sensor Commands
-#define icmdReadVersion         01  // Command to read sensor firmware version
-#define icmdReadData            02  // Command to read real-time sensor data
-#define icmdFlashStart          03  // Command to start recording data to flash memory
-#define icmdFlashReadPos        04  // Command to read flash memory at a specific position
+/*
+#define icmdReadVersion         01  // Command to read the version of the sensor
+#define icmdReadData            02  // Command to read sensor data
+#define icmdFlashStart          03  // Command to start recording data into flash memory
+#define icmdFlashReadPos        04  // Command to read data from a specific position in flash memory
 #define icmdFlashEraseFull      05  // Command to erase the entire flash memory
-#define icmdFlashSetSampleSize  06  // Command to set flash memory sample size
-#define icmdFlashStatus         07  // Command to get flash memory status
+#define icmdFlashSetSampleSize  06  // Command to set the sample size for flash memory
+#define icmdFlashStatus         07  // Command to get the status of the flash memory read (e.g., percentage complete)
+#define icmdFlashGetData        08  // Get Flash sample from sensor module and store it locally
+#define icmdFlashGenCSV         09  // Generate a CSV file from the flash data stored locally
+*/
+
+enum {
+    icmdReadVersion = 0x01,         // Read sensor firmware version
+    icmdReadData,                   // Retrieve current sensor data
+    icmdFlashStart,                 // Start recording data into flash memory
+    icmdFlashReadPos,               // Read data from a specific flash memory position
+    icmdFlashEraseFull,             // Erase all data in flash memory
+    icmdFlashSetSampleSize,         // Set the size of samples to store in flash
+    icmdFlashStatus,                // Retrieve flash memory operation status
+    icmdFlashGetData,               // Fetch raw data from flash memory
+    icmdFlashGenCSV                 // Generate CSV-formatted output from flash data
+};
 
 //*****************************************************************************
 //
-// System Timing Settings: Defines system tick timing and timeouts.
+// System Timing Settings: Defines system tick timing and timeouts
 //
 //*****************************************************************************
 
@@ -87,7 +103,7 @@ uint32_t HeatbeatTrigger = 0;      // Timer to track heartbeat signals
 
 //*****************************************************************************
 //
-// Flash Memory Settings: Defines user space and sample size in flash memory.
+// Flash Memory Settings: Defines user space and sample size in flash memory
 //
 //*****************************************************************************
 
@@ -97,7 +113,7 @@ uint32_t FlashSampleSize = 0x10000;// Size of each sample stored in flash memory
 
 //*****************************************************************************
 //
-// I2C Command Handling: Variables to handle incoming I2C commands and timeouts.
+// I2C Command Handling: Variables to handle incoming I2C commands and timeouts
 //
 //*****************************************************************************
 
@@ -112,8 +128,8 @@ bool I2C_RcvNewCommand = false;    // Flag indicating whether a new I2C command 
 //*****************************************************************************
 //
 // Circular Buffer Implementation: Provides functions for initializing, pushing,
-// and popping data in a circular buffer. This buffer is used to temporarily store
-// sensor data in RAM before writing to flash memory.
+// and popping data in a circular buffer; this buffer is used to temporarily store
+// sensor data in RAM before writing to flash memory
 //
 //*****************************************************************************
 
@@ -127,7 +143,7 @@ typedef struct {
 
 //*****************************************************************************
 //
-// Buffer Settings: Defines the buffer size and initializes the buffer array.
+// Buffer Settings: Defines the buffer size and initializes the buffer array
 //
 //*****************************************************************************
 
@@ -137,10 +153,10 @@ circ_bbuf_t SensorBuf;                    // Circular buffer structure instance
 
 //*****************************************************************************
 //
-// Init_circ_bbuf: Initializes the circular buffer structure. This sets the buffer
-// data pointer, the maximum size, and initializes the head and tail pointers.
+// Init_circ_bbuf: Initializes the circular buffer structure; this sets the buffer
+// data pointer, the maximum size, and initializes the head and tail pointers
 //
-// \param c - Pointer to the circular buffer structure.
+// \param c - Pointer to the circular buffer structure
 //
 //*****************************************************************************
 
@@ -154,13 +170,13 @@ void Init_circ_bbuf(circ_bbuf_t *c)
 
 //*****************************************************************************
 //
-// circ_bbuf_push: Pushes new data into the circular buffer. If the buffer is full,
-// the function returns an error (-1). Otherwise, it updates the head pointer.
+// circ_bbuf_push: Pushes new data into the circular buffer; if the buffer is full,
+// the function returns an error (-1); otherwise, it updates the head pointer
 //
-// \param c - Pointer to the circular buffer structure.
-// \param data - The data to be pushed into the buffer.
+// \param c - Pointer to the circular buffer structure
+// \param data - The data to be pushed into the buffer
 //
-// \return 0 if successful, -1 if the buffer is full.
+// \return 0 if successful, -1 if the buffer is full
 //
 //*****************************************************************************
 
@@ -168,17 +184,17 @@ int circ_bbuf_push(circ_bbuf_t *c, uint32_t data)
 {
     int next;
 
-    // Calculate the next position for the head. If head reaches the max length,
-    // it wraps around to the start of the buffer.
+    // Calculate the next position for the head; if head reaches the max length,
+    // it wraps around to the start of the buffer
     next = c->head + 1;
     if (next >= c->maxlen)
         next = 0;
 
-    // If the next position is the tail, the buffer is full (cannot push data).
+    // If the next position is the tail, the buffer is full (cannot push data)
     if (next == c->tail)
         return -1;
 
-    // Store the data at the current head position, then move the head to the next position.
+    // Store the data at the current head position, then move the head to the next position
     c->bufdata[c->head] = data;
     c->head = next;
 
@@ -187,13 +203,13 @@ int circ_bbuf_push(circ_bbuf_t *c, uint32_t data)
 
 //*****************************************************************************
 //
-// circ_bbuf_pop: Pops data from the circular buffer. If the buffer is empty (head
-// equals tail), the function returns an error (-1). Otherwise, it updates the tail pointer.
+// circ_bbuf_pop: Pops data from the circular buffer; if the buffer is empty (head
+// equals tail), the function returns an error (-1); otherwise, it updates the tail pointer
 //
-// \param c - Pointer to the circular buffer structure.
-// \param data - Pointer to store the popped data.
+// \param c - Pointer to the circular buffer structure
+// \param data - Pointer to store the popped data
 //
-// \return 0 if successful, -1 if the buffer is empty.
+// \return 0 if successful, -1 if the buffer is empty
 //
 //*****************************************************************************
 
@@ -201,17 +217,17 @@ int circ_bbuf_pop(circ_bbuf_t *c, uint32_t *data)
 {
     int next;
 
-    // If head equals tail, the buffer is empty (no data to pop).
+    // If head equals tail, the buffer is empty (no data to pop)
     if (c->head == c->tail)
         return -1;
 
-    // Calculate the next position for the tail. If tail reaches the max length,
-    // it wraps around to the start of the buffer.
+    // Calculate the next position for the tail; if tail reaches the max length,
+    // it wraps around to the start of the buffer
     next = c->tail + 1;
     if (next >= c->maxlen)
         next = 0;
 
-    // Retrieve the data from the current tail position, then move the tail to the next position.
+    // Retrieve the data from the current tail position, then move the tail to the next position
     *data = c->bufdata[c->tail];
     c->tail = next;
 
@@ -221,13 +237,13 @@ int circ_bbuf_pop(circ_bbuf_t *c, uint32_t *data)
 //*****************************************************************************
 //
 // Global CAN and Utility Functions: Defines global CAN flags, the CAN message
-// structure, and utility functions for timing, bit manipulation, and flag checking.
+// structure, and utility functions for timing, bit manipulation, and flag checking
 //
 //*****************************************************************************
 
 //*****************************************************************************
 //
-// Global CAN Flags: Defines the status flags for CAN message handling.
+// Global CAN Flags: Defines the status flags for CAN message handling
 //
 //*****************************************************************************
 
@@ -238,7 +254,7 @@ int circ_bbuf_pop(circ_bbuf_t *c, uint32_t *data)
 //*****************************************************************************
 //
 // CAN Message Structure: Defines the structure of a CAN message, including its
-// ID, status flags, and message data (up to 8 bytes).
+// ID, status flags, and message data (up to 8 bytes)
 //
 //*****************************************************************************
 
@@ -253,97 +269,97 @@ CAN_MSG_T CAN_RECV;        // Global variable to store the received CAN message
 //*****************************************************************************
 //
 // Utility Functions: Provides various utility functions for timing (delays) and
-// bit manipulation (setting, clearing, toggling, and checking bits).
+// bit manipulation (setting, clearing, toggling, and checking bits)
 //
 //*****************************************************************************
 
 //*****************************************************************************
 //
-// DelayMS: Delays the execution for a specified number of milliseconds.
+// DelayMS: Delays the execution for a specified number of milliseconds
 //
-// \param delay - The number of milliseconds to delay.
+// \param delay - The number of milliseconds to delay
 //
 //*****************************************************************************
 
 void DelayMS(unsigned int delay)
 {
-    // SysCtlDelay provides a delay based on the system clock. The formula is used
-    // to generate a delay in milliseconds.
+    // SysCtlDelay provides a delay based on the system clock; the formula is used
+    // to generate a delay in milliseconds
     SysCtlDelay((SysCtlClockGet() / 3 / 1000) * delay);
 }
 
 //*****************************************************************************
 //
-// bit_clear: Clears a specific bit in a given number.
+// bit_clear: Clears a specific bit in a given number
 //
-// \param number - The original number.
-// \param bit - The bit to clear.
+// \param number - The original number
+// \param bit - The bit to clear
 //
-// \return The modified number with the specified bit cleared.
+// \return The modified number with the specified bit cleared
 //
 //*****************************************************************************
 
 uint32_t bit_clear(uint32_t number, uint32_t bit)
 {
-    // Use bitwise AND and NOT to clear the bit at the specified position.
+    // Use bitwise AND and NOT to clear the bit at the specified position
     return number & ~((uint32_t)1 << bit);
 }
 
 //*****************************************************************************
 //
-// bit_toogle: Toggles a specific bit in a given number.
+// bit_toggle: Toggles a specific bit in a given number
 //
-// \param number - The original number.
-// \param bit - The bit to toggle.
+// \param number - The original number
+// \param bit - The bit to toggle
 //
-// \return The modified number with the specified bit toggled.
+// \return The modified number with the specified bit toggled
 //
 //*****************************************************************************
 
-uint32_t bit_toogle(uint32_t number, uint32_t bit)
+uint32_t bit_toggle(uint32_t number, uint32_t bit)
 {
-    // Use bitwise XOR to toggle the bit at the specified position.
+    // Use bitwise XOR to toggle the bit at the specified position
     return number ^ ((uint32_t)1 << bit);
 }
 
 //*****************************************************************************
 //
-// bit_set: Sets a specific bit in a given number.
+// bit_set: Sets a specific bit in a given number
 //
-// \param number - The original number.
-// \param bit - The bit to set.
+// \param number - The original number
+// \param bit - The bit to set
 //
-// \return The modified number with the specified bit set.
+// \return The modified number with the specified bit set
 //
 //*****************************************************************************
 
 uint32_t bit_set(uint32_t number, uint32_t bit)
 {
-    // Use bitwise OR to set the bit at the specified position.
+    // Use bitwise OR to set the bit at the specified position
     return number | ((uint32_t)1 << bit);
 }
 
 //*****************************************************************************
 //
-// bit_check: Checks if a specific bit in a given number is set.
+// bit_check: Checks if a specific bit in a given number is set
 //
-// \param number - The number to check.
-// \param bit - The bit to check.
+// \param number - The number to check
+// \param bit - The bit to check
 //
-// \return True if the bit is set, false otherwise.
+// \return True if the bit is set, false otherwise
 //
 //*****************************************************************************
 bool bit_check(uint32_t number, uint32_t bit)
 {
-    // Shift the bit to the right and check if it is set.
+    // Shift the bit to the right and check if it is set
     return (number >> bit) & (uint32_t)1;
 }
 
 //*****************************************************************************
 //
 // SysTick Interrupt Handler: Handles system tick interrupts that occur
-// periodically (every 1 millisecond). It triggers ADC reads, stores sensor
-// data in the circular buffer, and optionally dumps the data to flash memory.
+// periodically (every 1 millisecond); it triggers ADC reads, stores sensor
+// data in the circular buffer, and optionally dumps the data to flash memory
 //
 //*****************************************************************************
 
@@ -351,210 +367,215 @@ void SysTickIntHandler(void)
 {
     uint32_t pui32ADC0Value[1];  // Buffer to store ADC result
 
-    // Trigger an ADC read (ADC0, sequencer 3). SysTick is set to trigger every 1ms.
+    // Trigger an ADC read (ADC0, sequencer 3); SysTick is set to trigger every 1ms
     ADCProcessorTrigger(ADC0_BASE, 3);
     TimeOutClock = 0;
 
-    // Wait for the ADC conversion to complete or timeout.
+    // Wait for the ADC conversion to complete or timeout
     while (!ADCIntStatus(ADC0_BASE, 3, false))
     {
         if (TimeOutClock++ > ADC_ReadTimeOut)
         {
-            // If timeout occurs, clear the interrupt and return.
+            // If timeout occurs, clear the interrupt and return
             ADCIntClear(ADC0_BASE, 3);
             return;
         }
     }
 
-    // Clear the ADC interrupt once data is ready.
+    // Clear the ADC interrupt once data is ready
     ADCIntClear(ADC0_BASE, 3);
 
-    // Retrieve the ADC data (from sequencer 3) and store it in the buffer.
+    // Retrieve the ADC data (from sequencer 3) and store it in the buffer
     ADCSequenceDataGet(ADC0_BASE, 3, pui32ADC0Value);
 
-    // Push the ADC value into the circular buffer for real-time data processing.
+    // Push the ADC value into the circular buffer for real-time data processing
     circ_bbuf_push(&SensorBuf, pui32ADC0Value[0]);
 
-    // If FlashIndex points to valid user flash space, store ADC data into flash memory.
+    // If FlashIndex points to valid user flash space, store ADC data into flash memory
     if (FlashIndex < FlashUserSpace + FlashSampleSize)
     {
-        // Write the ADC value to flash memory (increment FlashIndex after writing 4 bytes).
+        if((FlashIndex & 0x7ff)==0x400)
+               {
+                   FlashErase(FlashIndex);  //Erase 0x400 black at a time
+               }
+
+        // Write the ADC value to flash memory (increment FlashIndex after writing 4 bytes)
         FlashProgram(&pui32ADC0Value[0], FlashIndex += 4, 4);
     }
 
-    // Increment the global timer for time-based operations.
+    // Increment the global timer for time-based operations
     GlobalTimer++;
 }
 
 //*****************************************************************************
 //
 // I2C0 Slave Interrupt Handler: Handles interrupts for I2C0 data communication
-// in slave mode. It reads incoming data from the master device and sets a flag
-// to indicate a new command has been received.
+// in slave mode; tt reads incoming data from the master device and sets a flag
+// to indicate a new command has been received
 //
 //*****************************************************************************
 
 void I2C0SlaveIntHandler(void)
 {
-    // Clear the I2C0 interrupt flag to acknowledge and reset the interrupt.
+    // Clear the I2C0 interrupt flag to acknowledge and reset the interrupt
     I2CSlaveIntClear(I2C0_BASE);
 
-    // Read the command data from the I2C master device.
+    // Read the command data from the I2C master device
     I2C_RcvCommand = I2CSlaveDataGet(I2C0_BASE);
 
-    // Read the command parameter from the I2C master device.
+    // Read the command parameter from the I2C master device
     I2C_RvcCommandParam = I2CSlaveDataGet(I2C0_BASE);
 
-    // Set a flag to indicate that a new I2C command has been received.
+    // Set a flag to indicate that a new I2C command has been received
     I2C_RcvNewCommand = true;
 }
 
 //*****************************************************************************
 //
-// ADC Initialization: Configures the ADC0 peripheral for analog data collection.
-// This function sets up the ADC to use GPIO pins and configures the sequence
-// for sampling.
+// ADC Initialization: Configures the ADC0 peripheral for analog data collection;
+// this function sets up the ADC to use GPIO pins and configures the sequence
+// for sampling
 //
 //*****************************************************************************
 
 void Init_ADC()
 {
-    // Enable the ADC0 peripheral.
+    // Enable the ADC0 peripheral
     SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
 
-    // Enable GPIO Port E for the ADC pins (PE2 and PE3).
+    // Enable GPIO Port E for the ADC pins (PE2 and PE3)
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
 
-    // Configure the GPIO pins for ADC input (PE2, PE3).
+    // Configure the GPIO pins for ADC input (PE2, PE3)
     GPIOPinTypeADC(GPIO_PORTE_BASE, GPIO_PIN_3 | GPIO_PIN_2);
 
-    // Configure ADC sequencer 3 to be triggered by the processor.
+    // Configure ADC sequencer 3 to be triggered by the processor
     ADCSequenceConfigure(ADC0_BASE, 3, ADC_TRIGGER_PROCESSOR, 0);
 
-    // Configure the steps in the ADC sequence. This configures sequencer step 0 to
-    // read channel 0 (ADC_CTL_CH0), generate an interrupt, and end the sequence.
+    // Configure the steps in the ADC sequence; this configures sequencer step 0 to
+    // read channel 0 (ADC_CTL_CH0), generate an interrupt, and end the sequence
     ADCSequenceStepConfigure(ADC0_BASE, 3, 0, ADC_CTL_D | ADC_CTL_CH0 | ADC_CTL_IE | ADC_CTL_END);
 
-    // Enable ADC sequencer 3 for sampling.
+    // Enable ADC sequencer 3 for sampling
     ADCSequenceEnable(ADC0_BASE, 3);
 
-    // Clear any pending ADC interrupts to ensure a clean start.
+    // Clear any pending ADC interrupts to ensure a clean start
     ADCIntClear(ADC0_BASE, 3);
 }
 
 //*****************************************************************************
 //
 // SysTick Initialization: Configures the system tick timer (SysTick) to generate
-// an interrupt every 1 millisecond. This is used for time-based tasks.
+// an interrupt every 1 millisecond; this is used for time-based tasks
 //
 //*****************************************************************************
 
 void Init_Systick (void)
 {
-    // Set the SysTick period for 1ms based on the system clock.
-    SysTickPeriodSet(SysCtlClockGet() / SYSTICK_TIMING); // Set SYSTICK to interrupt every 1ms
+    // Set the SysTick period for 1ms based on the system clock
+    SysTickPeriodSet(SysCtlClockGet() / SYSTICK_TIMING);    // Set SYSTICK to interrupt every 1ms
 
-    // Enable the SysTick Interrupt to handle periodic tasks.
+    // Enable the SysTick Interrupt to handle periodic tasks
     SysTickIntEnable();
 
-    // Enable the SysTick Timer to start the timer operation.
+    // Enable the SysTick Timer to start the timer operation
     SysTickEnable();
 }
 
 //*****************************************************************************
 //
 // I2C Initialization: Configures the I2C0 peripheral for communication in both
-// master and slave modes. This function sets up the GPIO pins for I2C, configures
-// interrupts, and enables the I2C master and slave modules.
+// master and slave modes; this function sets up the GPIO pins for I2C, configures
+// interrupts, and enables the I2C master and slave modules
 //
 //*****************************************************************************
 
 void Init_I2C(void)
 {
-    // Enable the I2C0 peripheral.
+    // Enable the I2C0 peripheral
     SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C0);
 
-    // Enable GPIO Port B for I2C0 pins (PB2, PB3).
+    // Enable GPIO Port B for I2C0 pins (PB2, PB3)
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
 
-    // Configure the pins for I2C0 (PB2 = SCL, PB3 = SDA).
+    // Configure the pins for I2C0 (PB2 = SCL, PB3 = SDA)
     GPIOPinConfigure(GPIO_PB2_I2C0SCL);
     GPIOPinConfigure(GPIO_PB3_I2C0SDA);
 
-    // Configure GPIO pins for I2C operation (open-drain, with weak pull-ups).
+    // Configure GPIO pins for I2C operation (open-drain, with weak pull-ups)
     GPIOPinTypeI2C(GPIO_PORTB_BASE, GPIO_PIN_2 | GPIO_PIN_3);
 
-    // Enable I2C0 interrupts on the processor.
+    // Enable I2C0 interrupts on the processor
     IntEnable(INT_I2C0);
 
-    // Enable I2C0 slave interrupts, specifically when the slave receives data.
+    // Enable I2C0 slave interrupts, specifically when the slave receives data
     I2CSlaveIntEnableEx(I2C0_BASE, I2C_SLAVE_INT_DATA);
 
-    // Initialize the I2C0 master module using the system clock, with a data rate of 100kbps.
+    // Initialize the I2C0 master module using the system clock, with a data rate of 100kbps
     I2CMasterInitExpClk(I2C0_BASE, SysCtlClockGet(), false);
 
-    // Enable the I2C0 slave module.
+    // Enable the I2C0 slave module
     I2CSlaveEnable(I2C0_BASE);
 
-    // Set the I2C0 slave address for communication.
+    // Set the I2C0 slave address for communication
     I2CSlaveInit(I2C0_BASE, SLAVE_ADDRESS);
 }
 
 //*****************************************************************************
 //
-// I2C_SendData: Sends a 32-bit word of data over the I2C bus in burst mode.
-// The function sends the data byte-by-byte, handling each step of the I2C
-// transaction (start, continue, and finish).
+// I2C_SendData: Sends a 32-bit word of data over the I2C bus in burst mode;
+// the function sends the data byte-by-byte, handling each step of the I2C
+// transaction (start, continue, and finish)
 //
-// \param SData - The 32-bit data to send.
+// \param SData - The 32-bit data to send
 //
 //*****************************************************************************
 
 void I2C_SendData(uint32_t SData)
 {
-    // Set the I2C slave address (with the write flag).
+    // Set the I2C slave address (with the write flag)
     I2CMasterSlaveAddrSet(I2C0_BASE, SLAVE_ADDRESS, false);
 
-    // Send the most significant byte (MSB) of the 32-bit data.
+    // Send the most significant byte (MSB) of the 32-bit data
     I2CMasterDataPut(I2C0_BASE, (uint8_t)(SData >> 24));
 
-    // Start the I2C burst transmission.
+    // Start the I2C burst transmission
     I2CMasterControl(I2C0_BASE, I2C_MASTER_CMD_BURST_SEND_START);
 
-    // Wait until the master is ready or timeout occurs.
+    // Wait until the master is ready or timeout occurs
     I2C_TimeOutClock = I2C_TimeOut;
     while (I2CMasterBusy(I2C0_BASE))
     {
         if (--I2C_TimeOutClock == 0) break;
     }
 
-    // Send the second byte of the 32-bit data.
+    // Send the second byte of the 32-bit data
     I2CMasterDataPut(I2C0_BASE, (uint8_t)(SData >> 16));
     I2CMasterControl(I2C0_BASE, I2C_MASTER_CMD_BURST_SEND_CONT);
 
-    // Wait until the master is ready or timeout occurs.
+    // Wait until the master is ready or timeout occurs
     I2C_TimeOutClock = I2C_TimeOut;
     while (I2CMasterBusy(I2C0_BASE))
     {
         if (--I2C_TimeOutClock == 0) break;
     }
 
-    // Send the third byte of the 32-bit data.
+    // Send the third byte of the 32-bit data
     I2CMasterDataPut(I2C0_BASE, (uint8_t)(SData >> 8));
     I2CMasterControl(I2C0_BASE, I2C_MASTER_CMD_BURST_SEND_CONT);
 
-    // Wait until the master is ready or timeout occurs.
+    // Wait until the master is ready or timeout occurs
     I2C_TimeOutClock = I2C_TimeOut;
     while (I2CMasterBusy(I2C0_BASE))
     {
         if (--I2C_TimeOutClock == 0) break;
     }
 
-    // Send the least significant byte (LSB) of the 32-bit data.
+    // Send the least significant byte (LSB) of the 32-bit data
     I2CMasterDataPut(I2C0_BASE, (uint8_t)(SData));
     I2CMasterControl(I2C0_BASE, I2C_MASTER_CMD_BURST_SEND_FINISH);
 
-    // Wait until the master is ready or timeout occurs.
+    // Wait until the master is ready or timeout occurs
     I2C_TimeOutClock = I2C_TimeOut;
     while (I2CMasterBusy(I2C0_BASE))
     {
@@ -565,14 +586,14 @@ void I2C_SendData(uint32_t SData)
 //*****************************************************************************
 //
 // CANPollCheck: Polls the CAN bus for a specific message ID and checks if new
-// data is available. If new data is present, it reads the CAN message and returns
-// the number of messages received.
+// data is available; if new data is present, it reads the CAN message and returns
+// the number of messages received
 //
-// \param candata - Pointer to the buffer where the received CAN data will be stored.
-// \param MsgID - The CAN message ID to check for.
+// \param candata - Pointer to the buffer where the received CAN data will be stored
+// \param MsgID - The CAN message ID to check for
 // \param Response - (Not used in the function, but could be used for handling specific responses)
 //
-// \return The number of messages received with the specified message ID.
+// \return The number of messages received with the specified message ID
 //
 //*****************************************************************************
 
@@ -593,8 +614,8 @@ uint32_t CANPollCheck(unsigned char *candata, int MsgID, unsigned char Response)
     // Loop while there is new data for the specified message ID
     while (ulNewData & (1 << (MsgID - 1)))
     {
-        // Read the message from the specified message object (MsgID) and store it in sMsgObjectRx.
-        // 'true' indicates that the message should be cleared from the message object after reading.
+        // Read the message from the specified message object (MsgID) and store it in sMsgObjectRx
+        // 'true' indicates that the message should be cleared from the message object after reading
         CANMessageGet(CAN0_BASE, MsgID, &sMsgObjectRx, true);
         rValue++;                           // Increment the counter for each received message
 
@@ -607,9 +628,9 @@ uint32_t CANPollCheck(unsigned char *candata, int MsgID, unsigned char Response)
 
 //*****************************************************************************
 //
-// CAN0 Interrupt Handler: Handles interrupts on the CAN0 interface. It checks
+// CAN0 Interrupt Handler: Handles interrupts on the CAN0 interface; it checks
 // for new messages on the CAN bus and processes any messages received for the
-// specified CAN ID. It also sets flags to handle message overrun conditions.
+// specified CAN ID; also sets flags to handle message overrun conditions
 //
 //*****************************************************************************
 
@@ -624,11 +645,11 @@ void IntCAN0Handler(void)
     tempCANMsgObject.pui8MsgData = CANMsg;
     tempCANMsgObject.ui32MsgLen = 8;
 
-    // Get the cause of the interrupt and clear it.
+    // Get the cause of the interrupt and clear it
     ulStatus = CANIntStatus(CAN0_BASE, CAN_INT_STS_CAUSE);
     CANIntClear(CAN0_BASE, ulStatus);
 
-    // If the interrupt is not a controller status interrupt, handle it.
+    // If the interrupt is not a controller status interrupt, handle it
     if (ulStatus != CAN_INT_INTID_STATUS)
     {
         // Get the controller status
@@ -665,14 +686,14 @@ void IntCAN0Handler(void)
 
 //*****************************************************************************
 //
-// CANSendINT: Sends a 4-byte integer over the CAN bus using the specified CAN ID.
-// This function waits for the transmission to complete and returns an error if
-// the transmission times out.
+// CANSendINT: Sends a 4-byte integer over the CAN bus using the specified CAN ID;
+// this function waits for the transmission to complete and returns an error if
+// the transmission times out
 //
-// \param CANID - The ID of the CAN message to send.
-// \param pui8MsgData - The 4-byte integer data to send.
+// \param CANID - The ID of the CAN message to send
+// \param pui8MsgData - The 4-byte integer data to send
 //
-// \return 0 if successful, or 0xffffffff if a timeout occurred.
+// \return 0 if successful, or 0xffffffff if a timeout occurred
 //
 //*****************************************************************************
 
@@ -681,22 +702,22 @@ uint32_t CANSendINT(unsigned long CANID, uint32_t pui8MsgData)
     unsigned long TimeOut = 0;                          // Variable to track timeout conditions
     tCANMsgObject sCANMessage;                          // CAN message object for sending data
 
-    // Set up the CAN message object with the given CAN ID and 4-byte data.
+    // Set up the CAN message object with the given CAN ID and 4-byte data
     sCANMessage.ui32MsgID = CANID;                      // Set the message ID
     sCANMessage.ui32Flags = 0;                          // No special flags are used
     sCANMessage.ui32MsgLen = 4;                         // The message length is 4 bytes
     sCANMessage.pui8MsgData = (uint8_t *)&pui8MsgData;  // Set the data pointer
 
-    // Send the message using message object 32 (arbitrary choice).
+    // Send the message using message object 32 (arbitrary choice)
     CANMessageSet(CAN0_BASE, 32, &sCANMessage, MSG_OBJ_TYPE_TX);
 
-    // Wait for the CAN message to be transmitted.
+    // Wait for the CAN message to be transmitted
     while (CANStatusGet(CAN0_BASE, CAN_STS_TXREQUEST) != 0)
     {
         TimeOut++;
         SysCtlDelay(SysCtlClockGet() / 30000);          // Delay to avoid tight looping
 
-        // If the transmission times out, return an error.
+        // If the transmission times out, return an error
         if (TimeOut > 0x0001000)
         {
             return 0xffffffff;                          // Return error code for timeout
@@ -708,14 +729,14 @@ uint32_t CANSendINT(unsigned long CANID, uint32_t pui8MsgData)
 
 //*****************************************************************************
 //
-// CANSendMSG: Sends an 8-byte message over the CAN bus using the specified CAN ID.
-// This function waits for the transmission to complete and returns an error if
-// the transmission times out.
+// CANSendMSG: Sends an 8-byte message over the CAN bus using the specified CAN ID;
+// this function waits for the transmission to complete and returns an error if
+// the transmission times out
 //
-// \param CANID - The ID of the CAN message to send.
-// \param pui8MsgData - Pointer to the 8-byte data to send.
+// \param CANID - The ID of the CAN message to send
+// \param pui8MsgData - Pointer to the 8-byte data to send
 //
-// \return 0 if successful, or 0xffffffff if a timeout occurred.
+// \return 0 if successful, or 0xffffffff if a timeout occurred
 //
 //*****************************************************************************
 
@@ -724,22 +745,22 @@ uint32_t CANSendMSG(unsigned long CANID, uint8_t *pui8MsgData)
     unsigned long TimeOut = 0;                  // Variable to track timeout conditions
     tCANMsgObject sCANMessage;                  // CAN message object for sending data
 
-    // Set up the CAN message object with the given CAN ID and 8-byte data.
+    // Set up the CAN message object with the given CAN ID and 8-byte data
     sCANMessage.ui32MsgID = CANID;              // Set the message ID
     sCANMessage.ui32Flags = 0;                  // No special flags are used
     sCANMessage.ui32MsgLen = 8;                 // The message length is 8 bytes
     sCANMessage.pui8MsgData = pui8MsgData;      // Set the data pointer
 
-    // Send the message using message object 32 (arbitrary choice).
+    // Send the message using message object 32 (arbitrary choice)
     CANMessageSet(CAN0_BASE, 32, &sCANMessage, MSG_OBJ_TYPE_TX);
 
-    // Wait for the CAN message to be transmitted.
+    // Wait for the CAN message to be transmitted
     while (CANStatusGet(CAN0_BASE, CAN_STS_TXREQUEST) != 0)
     {
         TimeOut++;
         SysCtlDelay(SysCtlClockGet() / 30000);  // Delay to avoid tight looping
 
-        // If the transmission times out, return an error.
+        // If the transmission times out, return an error
         if (TimeOut > 0x0001000)
         {
             return 0xffffffff;                  // Return error code for timeout
@@ -751,11 +772,11 @@ uint32_t CANSendMSG(unsigned long CANID, uint8_t *pui8MsgData)
 
 //*****************************************************************************
 //
-// CANListnerEX: Sets up a CAN message object for receiving data. This function
+// CANListnerEX: Sets up a CAN message object for receiving data; this function
 // configures a message object to use an extended ID filter and allocates space
-// for receiving 8 bytes of data.
+// for receiving 8 bytes of data
 //
-// \param MsgID - The message ID to configure for receiving.
+// \param MsgID - The message ID to configure for receiving
 //
 //*****************************************************************************
 
@@ -763,75 +784,75 @@ void CANListnerEX(int MsgID)
 {
     tCANMsgObject sMsgObjectRx;                                             // CAN message object for receiving data
 
-    // Configure the message object to receive messages with extended IDs.
+    // Configure the message object to receive messages with extended IDs
     sMsgObjectRx.ui32MsgID = 0;                                             // Accept all message IDs (no specific ID)
     sMsgObjectRx.ui32MsgIDMask = 0;                                         // Mask for extended ID filtering
     sMsgObjectRx.ui32Flags = MSG_OBJ_USE_ID_FILTER | MSG_OBJ_EXTENDED_ID;   // Use ID filter and extended ID
     sMsgObjectRx.ui32MsgLen = 8;                                            // Expect 8 bytes of data
     sMsgObjectRx.pui8MsgData = (unsigned char *)0xffffffff;                 // Set dummy data pointer
 
-    // Configure the CAN message object for receiving messages.
+    // Configure the CAN message object for receiving messages
     CANMessageSet(CAN0_BASE, MsgID, &sMsgObjectRx, MSG_OBJ_TYPE_RX);
 }
 
 //*****************************************************************************
 //
-// Init_CAN: Initializes the CAN0 peripheral for communication. This function sets
+// Init_CAN: Initializes the CAN0 peripheral for communication; this function sets
 // up the CAN pins, configures the baud rate, enables interrupts, and prepares the
-// CAN bus for operation.
+// CAN bus for operation
 //
-// \param Baud - The baud rate for CAN communication.
+// \param Baud - The baud rate for CAN communication
 //
 //*****************************************************************************
 
 void Init_CAN(uint32_t Baud)
 {
-    // Enable the GPIO port B peripheral (for CAN RX and TX pins).
+    // Enable the GPIO port B peripheral (for CAN RX and TX pins)
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
 
-    // Configure the pin muxing for CAN0 functions on port B4 (CAN0RX) and B5 (CAN0TX).
+    // Configure the pin muxing for CAN0 functions on port B4 (CAN0RX) and B5 (CAN0TX)
     GPIOPinConfigure(GPIO_PB4_CAN0RX);
     GPIOPinConfigure(GPIO_PB5_CAN0TX);
 
-    // Configure the GPIO pins for CAN operation.
+    // Configure the GPIO pins for CAN operation
     GPIOPinTypeCAN(GPIO_PORTB_BASE, GPIO_PIN_4 | GPIO_PIN_5);
 
-    // Enable the CAN0 peripheral.
+    // Enable the CAN0 peripheral
     SysCtlPeripheralEnable(SYSCTL_PERIPH_CAN0);
 
-    // Initialize the CAN0 controller.
+    // Initialize the CAN0 controller
     CANInit(CAN0_BASE);
 
-    // Set the baud rate for CAN communication.
+    // Set the baud rate for CAN communication
     CANBitRateSet(CAN0_BASE, SysCtlClockGet(), Baud);
 
-    // Enable the desired CAN interrupts (master, error, and status interrupts).
+    // Enable the desired CAN interrupts (master, error, and status interrupts)
     CANIntEnable(CAN0_BASE, CAN_INT_MASTER | CAN_INT_ERROR | CAN_INT_STATUS);
 
-    // Enable CAN0 interrupts on the processor (NVIC).
+    // Enable CAN0 interrupts on the processor (NVIC)
     IntEnable(INT_CAN0);
 
-    // Enable the CAN0 controller.
+    // Enable the CAN0 controller
     CANEnable(CAN0_BASE);
 
-    // Enable automatic retries for CAN messages that fail to transmit.
+    // Enable automatic retries for CAN messages that fail to transmit
     CANRetrySet(CAN0_BASE, true);
 
-    // Small delay to allow CAN initialization to complete.
+    // Small delay to allow CAN initialization to complete
     DelayMS(10);
 
-    // Set up a CAN listener on mailbox 1 to receive broadcast messages.
+    // Set up a CAN listener on mailbox 1 to receive broadcast messages
     CANListnerEX(1);
 
-    // Small delay to ensure CAN listener is fully initialized.
+    // Small delay to ensure CAN listener is fully initialized
     DelayMS(10);
 }
 
 //*****************************************************************************
 //
-// Main Function: Main loop of the Inkley_PressureSensor program. It handles CAN
+// Main Function: Main loop of the Inkley_PressureSensor program; it handles CAN
 // communication, processes sensor data, and manages flash memory for storing sensor
-// readings.
+// readings
 //
 //*****************************************************************************
 
@@ -840,6 +861,7 @@ int main(void)
     uint32_t BufDataVar = 0;            // Variable to store buffer data (from the sensor)
     uint32_t CANID_tmp = 0;             // Temporary variable for the received CAN ID
     uint32_t CANVAL_tmp = 0;            // Temporary variable for the received CAN value
+    uint32_t lop = 0;                   // Loop iterator variable
     uint8_t CAN_RESP[8];                // Array for storing CAN response data
     uint8_t CAN_CMD_REQUEST = 0;        // Stores the command requested via CAN
 
@@ -862,7 +884,7 @@ int main(void)
     //*************************************************************************
     //
     // Main program loop: Processes incoming CAN messages, handles I2C commands,
-    // manages flash memory, and sends periodic heartbeat messages.
+    // manages flash memory, and sends periodic heartbeat messages
     //
     //*************************************************************************
     while (1)
@@ -959,6 +981,31 @@ int main(void)
                     CAN_RESP[7] = (uint8_t)(CANVAL_tmp);
                     CANSendMSG(CANID_tmp, CAN_RESP);
                     break;
+
+                case icmdFlashGetData:          // Fetch raw data from flash memory
+                    // Send size of sample with first response
+                    CANVAL_tmp = FlashSampleSize;
+                    CAN_RESP[4] = (uint8_t)(CANVAL_tmp >> 24);
+                    CAN_RESP[5] = (uint8_t)(CANVAL_tmp >> 16);
+                    CAN_RESP[6] = (uint8_t)(CANVAL_tmp >> 8);
+                    CAN_RESP[7] = (uint8_t)(CANVAL_tmp);
+                    CANSendMSG(CANID_tmp,CAN_RESP);
+                    for(lop=FlashUserSpace;lop <= FlashUserSpace+FlashSampleSize;lop+=4)
+                    {
+                           CANVAL_tmp = *((uint32_t *)lop);
+                           CAN_RESP[4] = (uint8_t)(CANVAL_tmp >> 24);
+                           CAN_RESP[5] = (uint8_t)(CANVAL_tmp >> 16);
+                           CAN_RESP[6] = (uint8_t)(CANVAL_tmp >> 8);
+                           CAN_RESP[7] = (uint8_t)(CANVAL_tmp);
+                           CANSendMSG(CANID_tmp,CAN_RESP);
+                    }
+                   CANVAL_tmp = 0x0;    // Dend zero to end stream
+                   CAN_RESP[4] = (uint8_t)(CANVAL_tmp >> 24);
+                   CAN_RESP[5] = (uint8_t)(CANVAL_tmp >> 16);
+                   CAN_RESP[6] = (uint8_t)(CANVAL_tmp >> 8);
+                   CAN_RESP[7] = (uint8_t)(CANVAL_tmp);
+                   CANSendMSG(CANID_tmp,CAN_RESP);
+                   break;
             }
 
             // Reset the new message flag and set the heartbeat timer
