@@ -36,7 +36,7 @@ static void IntDefaultHandler(void);
 
 extern void IntCAN0Handler(void);
 extern void SysTickIntHandler(void);
-extern void I2C0SlaveIntHandler();
+
 
 //*****************************************************************************
 //
@@ -95,7 +95,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // UART0 Rx and Tx
     IntDefaultHandler,                      // UART1 Rx and Tx
     IntDefaultHandler,                      // SSI0 Rx and Tx
-    I2C0SlaveIntHandler,                      // I2C0 Master and Slave
+    IntDefaultHandler,                      // I2C0 Master and Slave
     IntDefaultHandler,                      // PWM Fault
     IntDefaultHandler,                      // PWM Generator 0
     IntDefaultHandler,                      // PWM Generator 1

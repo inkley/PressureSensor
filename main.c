@@ -54,38 +54,29 @@ Inkley_PressureSensor
 
 uint32_t BuildVersion = 1002;       // Firmware version for this build
 
+// Time Out
+uint32_t TimeOutCounter = 0;
+
+#define PressureSensor1     0x01
+#define PressureSensor2     0x02
+#define TemperatureSensor1  0x03
+#define TemperatureSensor2  0x04
+
+
 // CAN Bus Settings
 #define CAN_ID      0x107           // CAN bus ID for the sensor module
+#define CAN_BC_ID   0x7DF           //CAN ID for sensor data broadcast.
 #define CAN_BAUD    500000          // CAN bus baud rate set to 500 Kbps
-
-//I2C Settings
-#define NUM_I2C_DATA 8              // Number of data bytes expected for I2C communication
-#define SLAVE_ADDRESS 0x3C          // I2C slave address for the sensor module
+uint8_t CAN_BUF[8];
 
 // Inkley Sensor Commands
-/*
-#define icmdReadVersion         01  // Command to read the version of the sensor
-#define icmdReadData            02  // Command to read sensor data
-#define icmdFlashStart          03  // Command to start recording data into flash memory
-#define icmdFlashReadPos        04  // Command to read data from a specific position in flash memory
-#define icmdFlashEraseFull      05  // Command to erase the entire flash memory
-#define icmdFlashSetSampleSize  06  // Command to set the sample size for flash memory
-#define icmdFlashStatus         07  // Command to get the status of the flash memory read (e.g., percentage complete)
-#define icmdFlashGetData        08  // Get Flash sample from sensor module and store it locally
-#define icmdFlashGenCSV         09  // Generate a CSV file from the flash data stored locally
-*/
 
-enum {
-    icmdReadVersion = 0x01,         // Read sensor firmware version
-    icmdReadData,                   // Retrieve current sensor data
-    icmdFlashStart,                 // Start recording data into flash memory
-    icmdFlashReadPos,               // Read data from a specific flash memory position
-    icmdFlashEraseFull,             // Erase all data in flash memory
-    icmdFlashSetSampleSize,         // Set the size of samples to store in flash
-    icmdFlashStatus,                // Retrieve flash memory operation status
-    icmdFlashGetData,               // Fetch raw data from flash memory
-    icmdFlashGenCSV                 // Generate CSV-formatted output from flash data
-};
+#define icmdReadVersion         0x01  // Command to read the version of the sensor
+#define icmdStreamRealtime      0x02  // Command to streamed data without buffering.
+#define icmdStopStreaming       0x03  // Command to stop all streaming
+#define icmdStreamBuffered      0x04  // Command to streamed data from double cache buffer.
+#define icmdStreamingStatus     0x05  // Command to information on streaming buffer.
+#define icmdStreamBufferSet     0x06  // Command to set stream buffer size. (double buffers so double this will be memory usage)
 
 //*****************************************************************************
 //
@@ -95,51 +86,25 @@ enum {
 
 #define SYSTICK_TIMING   1000      // SysTick timer set to 1 millisecond intervals
 #define ADC_ReadTimeOut 100        // Timeout for ADC reads
-#define I2C_TimeOut 10000          // Timeout for I2C communication
 
 uint32_t GlobalTimer = 0;          // Global timer for various time-based operations
-#define HeartBeatTime 10000        // Heartbeat signal interval (10 seconds)
-uint32_t HeatbeatTrigger = 0;      // Timer to track heartbeat signals
+#define HeartBeatTime 10000        // Heart beat signal interval (10 seconds)
+uint32_t HeatbeatTrigger = 0;      // Timer to track heart beat signals
 
 //*****************************************************************************
 //
-// Flash Memory Settings: Defines user space and sample size in flash memory
+// Stream Buffer Settings
 //
 //*****************************************************************************
 
-#define FlashUserSpace  0x30000    // Start address of user flash memory space
-uint32_t FlashIndex = 0x40000;     // Current index in flash memory (initially set to end of space)
-uint32_t FlashSampleSize = 0x10000;// Size of each sample stored in flash memory (64KB)
+uint8_t Streaming = 0;
+uint32_t StreamBufferSize = 8192;
+uint32_t StreamBufferIndex = 0;
 
-//*****************************************************************************
-//
-// I2C Command Handling: Variables to handle incoming I2C commands and timeouts
-//
-//*****************************************************************************
-
-int TimeOutClock = 0;              // Timeout clock for general operations
-int I2C_TimeOutClock = 0;          // Timeout clock for I2C communication
-
-uint32_t I2C_RcvCommand = 0;       // Stores the last received I2C command
-uint32_t I2C_RvcCommandParam = 0;  // Stores the parameter for the received I2C command
-
-bool I2C_RcvNewCommand = false;    // Flag indicating whether a new I2C command has been received
-
-//*****************************************************************************
-//
-// Circular Buffer Implementation: Provides functions for initializing, pushing,
-// and popping data in a circular buffer; this buffer is used to temporarily store
-// sensor data in RAM before writing to flash memory
-//
-//*****************************************************************************
-
-// Structure for a circular buffer
-typedef struct {
-    uint32_t *bufdata;  // Pointer to buffer data (array)
-    int head;           // Head index (where new data is written)
-    int tail;           // Tail index (where data is read from)
-    int maxlen;         // Maximum length of the buffer (capacity)
-} circ_bbuf_t;
+    #define smStopped      0x00
+    #define smRealTime     0x01
+    #define smBuffered     0x02
+uint32_t StreamingMode=smStopped;
 
 //*****************************************************************************
 //
@@ -149,90 +114,7 @@ typedef struct {
 
 #define SENSORBUFSIZE 1024                // Size of the circular buffer (1024 elements)
 uint32_t SensorBufferData[SENSORBUFSIZE]; // Array to hold sensor data
-circ_bbuf_t SensorBuf;                    // Circular buffer structure instance
-
-//*****************************************************************************
-//
-// Init_circ_bbuf: Initializes the circular buffer structure; this sets the buffer
-// data pointer, the maximum size, and initializes the head and tail pointers
-//
-// \param c - Pointer to the circular buffer structure
-//
-//*****************************************************************************
-
-void Init_circ_bbuf(circ_bbuf_t *c)
-{
-    c->bufdata = SensorBufferData;   // Set the buffer data array
-    c->maxlen = SENSORBUFSIZE;       // Set the buffer capacity
-    c->head = 0;                     // Initialize the head pointer to the start
-    c->tail = 0;                     // Initialize the tail pointer to the start
-}
-
-//*****************************************************************************
-//
-// circ_bbuf_push: Pushes new data into the circular buffer; if the buffer is full,
-// the function returns an error (-1); otherwise, it updates the head pointer
-//
-// \param c - Pointer to the circular buffer structure
-// \param data - The data to be pushed into the buffer
-//
-// \return 0 if successful, -1 if the buffer is full
-//
-//*****************************************************************************
-
-int circ_bbuf_push(circ_bbuf_t *c, uint32_t data)
-{
-    int next;
-
-    // Calculate the next position for the head; if head reaches the max length,
-    // it wraps around to the start of the buffer
-    next = c->head + 1;
-    if (next >= c->maxlen)
-        next = 0;
-
-    // If the next position is the tail, the buffer is full (cannot push data)
-    if (next == c->tail)
-        return -1;
-
-    // Store the data at the current head position, then move the head to the next position
-    c->bufdata[c->head] = data;
-    c->head = next;
-
-    return 0;  // Return success
-}
-
-//*****************************************************************************
-//
-// circ_bbuf_pop: Pops data from the circular buffer; if the buffer is empty (head
-// equals tail), the function returns an error (-1); otherwise, it updates the tail pointer
-//
-// \param c - Pointer to the circular buffer structure
-// \param data - Pointer to store the popped data
-//
-// \return 0 if successful, -1 if the buffer is empty
-//
-//*****************************************************************************
-
-int circ_bbuf_pop(circ_bbuf_t *c, uint32_t *data)
-{
-    int next;
-
-    // If head equals tail, the buffer is empty (no data to pop)
-    if (c->head == c->tail)
-        return -1;
-
-    // Calculate the next position for the tail; if tail reaches the max length,
-    // it wraps around to the start of the buffer
-    next = c->tail + 1;
-    if (next >= c->maxlen)
-        next = 0;
-
-    // Retrieve the data from the current tail position, then move the tail to the next position
-    *data = c->bufdata[c->tail];
-    c->tail = next;
-
-    return 0;  // Return success
-}
+//circ_bbuf_t SensorBuf;                    // Circular buffer structure instance
 
 //*****************************************************************************
 //
@@ -369,12 +251,12 @@ void SysTickIntHandler(void)
 
     // Trigger an ADC read (ADC0, sequencer 3); SysTick is set to trigger every 1ms
     ADCProcessorTrigger(ADC0_BASE, 3);
-    TimeOutClock = 0;
+    TimeOutCounter = 0;
 
     // Wait for the ADC conversion to complete or timeout
     while (!ADCIntStatus(ADC0_BASE, 3, false))
     {
-        if (TimeOutClock++ > ADC_ReadTimeOut)
+        if (TimeOutCounter++ > ADC_ReadTimeOut)
         {
             // If timeout occurs, clear the interrupt and return
             ADCIntClear(ADC0_BASE, 3);
@@ -388,46 +270,25 @@ void SysTickIntHandler(void)
     // Retrieve the ADC data (from sequencer 3) and store it in the buffer
     ADCSequenceDataGet(ADC0_BASE, 3, pui32ADC0Value);
 
-    // Push the ADC value into the circular buffer for real-time data processing
-    circ_bbuf_push(&SensorBuf, pui32ADC0Value[0]);
-
-    // If FlashIndex points to valid user flash space, store ADC data into flash memory
-    if (FlashIndex < FlashUserSpace + FlashSampleSize)
+    switch(StreamingMode)
     {
-        if((FlashIndex & 0x7ff)==0x400)
-               {
-                   FlashErase(FlashIndex);  //Erase 0x400 black at a time
-               }
-
-        // Write the ADC value to flash memory (increment FlashIndex after writing 4 bytes)
-        FlashProgram(&pui32ADC0Value[0], FlashIndex += 4, 4);
+        case smStopped:
+            break;
+        case smRealTime:
+            CAN_BUF[0]=0x05;
+            CAN_BUF[1]=PressureSensor1;
+            CAN_BUF[4] = (uint8_t)(pui32ADC0Value[0] >> 24);
+            CAN_BUF[5] = (uint8_t)(pui32ADC0Value[0] >> 16);
+            CAN_BUF[6] = (uint8_t)(pui32ADC0Value[0] >> 8);
+            CAN_BUF[7] = (uint8_t)(pui32ADC0Value[0]);
+            CANSendMSG(CAN_BC_ID, CAN_BUF);
+            break;
+        case smBuffered:
+            break;
     }
 
     // Increment the global timer for time-based operations
     GlobalTimer++;
-}
-
-//*****************************************************************************
-//
-// I2C0 Slave Interrupt Handler: Handles interrupts for I2C0 data communication
-// in slave mode; tt reads incoming data from the master device and sets a flag
-// to indicate a new command has been received
-//
-//*****************************************************************************
-
-void I2C0SlaveIntHandler(void)
-{
-    // Clear the I2C0 interrupt flag to acknowledge and reset the interrupt
-    I2CSlaveIntClear(I2C0_BASE);
-
-    // Read the command data from the I2C master device
-    I2C_RcvCommand = I2CSlaveDataGet(I2C0_BASE);
-
-    // Read the command parameter from the I2C master device
-    I2C_RvcCommandParam = I2CSlaveDataGet(I2C0_BASE);
-
-    // Set a flag to indicate that a new I2C command has been received
-    I2C_RcvNewCommand = true;
 }
 
 //*****************************************************************************
@@ -480,107 +341,6 @@ void Init_Systick (void)
 
     // Enable the SysTick Timer to start the timer operation
     SysTickEnable();
-}
-
-//*****************************************************************************
-//
-// I2C Initialization: Configures the I2C0 peripheral for communication in both
-// master and slave modes; this function sets up the GPIO pins for I2C, configures
-// interrupts, and enables the I2C master and slave modules
-//
-//*****************************************************************************
-
-void Init_I2C(void)
-{
-    // Enable the I2C0 peripheral
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C0);
-
-    // Enable GPIO Port B for I2C0 pins (PB2, PB3)
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
-
-    // Configure the pins for I2C0 (PB2 = SCL, PB3 = SDA)
-    GPIOPinConfigure(GPIO_PB2_I2C0SCL);
-    GPIOPinConfigure(GPIO_PB3_I2C0SDA);
-
-    // Configure GPIO pins for I2C operation (open-drain, with weak pull-ups)
-    GPIOPinTypeI2C(GPIO_PORTB_BASE, GPIO_PIN_2 | GPIO_PIN_3);
-
-    // Enable I2C0 interrupts on the processor
-    IntEnable(INT_I2C0);
-
-    // Enable I2C0 slave interrupts, specifically when the slave receives data
-    I2CSlaveIntEnableEx(I2C0_BASE, I2C_SLAVE_INT_DATA);
-
-    // Initialize the I2C0 master module using the system clock, with a data rate of 100kbps
-    I2CMasterInitExpClk(I2C0_BASE, SysCtlClockGet(), false);
-
-    // Enable the I2C0 slave module
-    I2CSlaveEnable(I2C0_BASE);
-
-    // Set the I2C0 slave address for communication
-    I2CSlaveInit(I2C0_BASE, SLAVE_ADDRESS);
-}
-
-//*****************************************************************************
-//
-// I2C_SendData: Sends a 32-bit word of data over the I2C bus in burst mode;
-// the function sends the data byte-by-byte, handling each step of the I2C
-// transaction (start, continue, and finish)
-//
-// \param SData - The 32-bit data to send
-//
-//*****************************************************************************
-
-void I2C_SendData(uint32_t SData)
-{
-    // Set the I2C slave address (with the write flag)
-    I2CMasterSlaveAddrSet(I2C0_BASE, SLAVE_ADDRESS, false);
-
-    // Send the most significant byte (MSB) of the 32-bit data
-    I2CMasterDataPut(I2C0_BASE, (uint8_t)(SData >> 24));
-
-    // Start the I2C burst transmission
-    I2CMasterControl(I2C0_BASE, I2C_MASTER_CMD_BURST_SEND_START);
-
-    // Wait until the master is ready or timeout occurs
-    I2C_TimeOutClock = I2C_TimeOut;
-    while (I2CMasterBusy(I2C0_BASE))
-    {
-        if (--I2C_TimeOutClock == 0) break;
-    }
-
-    // Send the second byte of the 32-bit data
-    I2CMasterDataPut(I2C0_BASE, (uint8_t)(SData >> 16));
-    I2CMasterControl(I2C0_BASE, I2C_MASTER_CMD_BURST_SEND_CONT);
-
-    // Wait until the master is ready or timeout occurs
-    I2C_TimeOutClock = I2C_TimeOut;
-    while (I2CMasterBusy(I2C0_BASE))
-    {
-        if (--I2C_TimeOutClock == 0) break;
-    }
-
-    // Send the third byte of the 32-bit data
-    I2CMasterDataPut(I2C0_BASE, (uint8_t)(SData >> 8));
-    I2CMasterControl(I2C0_BASE, I2C_MASTER_CMD_BURST_SEND_CONT);
-
-    // Wait until the master is ready or timeout occurs
-    I2C_TimeOutClock = I2C_TimeOut;
-    while (I2CMasterBusy(I2C0_BASE))
-    {
-        if (--I2C_TimeOutClock == 0) break;
-    }
-
-    // Send the least significant byte (LSB) of the 32-bit data
-    I2CMasterDataPut(I2C0_BASE, (uint8_t)(SData));
-    I2CMasterControl(I2C0_BASE, I2C_MASTER_CMD_BURST_SEND_FINISH);
-
-    // Wait until the master is ready or timeout occurs
-    I2C_TimeOutClock = I2C_TimeOut;
-    while (I2CMasterBusy(I2C0_BASE))
-    {
-        if (--I2C_TimeOutClock == 0) break;
-    }
 }
 
 //*****************************************************************************
@@ -871,12 +631,7 @@ int main(void)
     // Initialize system peripherals (ADC, SysTick, I2C, Circular Buffer, CAN)
     Init_ADC();
     Init_Systick();
-    Init_I2C();
-    Init_circ_bbuf(&SensorBuf);
     Init_CAN(CAN_BAUD);
-
-    // Erase the flash memory area that will be used for logging sensor data
-    FlashErase(FlashUserSpace);
 
     // Turn on CAN bus listener using mailbox 1
     CANListnerEX(1);
@@ -922,91 +677,51 @@ int main(void)
                     CANSendMSG(CANID_tmp, CAN_RESP);
                     break;
 
-                case icmdReadData:              // Read Sensor Data
-                    // Retrieve the latest sensor data from the circular buffer
-                    circ_bbuf_pop(&SensorBuf, &BufDataVar);
-                    CAN_RESP[4] = (uint8_t)(BufDataVar >> 24);
-                    CAN_RESP[5] = (uint8_t)(BufDataVar >> 16);
-                    CAN_RESP[6] = (uint8_t)(BufDataVar >> 8);
-                    CAN_RESP[7] = (uint8_t)(BufDataVar);
+                case icmdStreamRealtime:
+                    StreamingMode = smRealTime;
+                    CAN_RESP[4] = (uint8_t)(StreamingMode >> 24);
+                    CAN_RESP[5] = (uint8_t)(StreamingMode >> 16);
+                    CAN_RESP[6] = (uint8_t)(StreamingMode >> 8);
+                    CAN_RESP[7] = (uint8_t)(StreamingMode);
                     CANSendMSG(CANID_tmp, CAN_RESP);
                     break;
 
-                case icmdFlashReadPos:          // Read Flash Memory Position
-                    // Return the current flash index
-                    CAN_RESP[4] = (uint8_t)(FlashIndex >> 24);
-                    CAN_RESP[5] = (uint8_t)(FlashIndex >> 16);
-                    CAN_RESP[6] = (uint8_t)(FlashIndex >> 8);
-                    CAN_RESP[7] = (uint8_t)(FlashIndex);
+                case icmdStopStreaming:
+                    StreamingMode = smStopped;
+                    CAN_RESP[4] = (uint8_t)(StreamingMode >> 24);
+                    CAN_RESP[5] = (uint8_t)(StreamingMode >> 16);
+                    CAN_RESP[6] = (uint8_t)(StreamingMode >> 8);
+                    CAN_RESP[7] = (uint8_t)(StreamingMode);
                     CANSendMSG(CANID_tmp, CAN_RESP);
                     break;
 
-                case icmdFlashEraseFull:        // Erase Flash Memory
-                    // Erase the user flash space and return its address
-                    FlashErase(FlashUserSpace);
-                    CAN_RESP[4] = (uint8_t)(FlashUserSpace >> 24);
-                    CAN_RESP[5] = (uint8_t)(FlashUserSpace >> 16);
-                    CAN_RESP[6] = (uint8_t)(FlashUserSpace >> 8);
-                    CAN_RESP[7] = (uint8_t)(FlashUserSpace);
+                case icmdStreamBuffered:
+                    StreamingMode = smBuffered;
+                    CAN_RESP[4] = (uint8_t)(StreamingMode >> 24);
+                    CAN_RESP[5] = (uint8_t)(StreamingMode >> 16);
+                    CAN_RESP[6] = (uint8_t)(StreamingMode >> 8);
+                    CAN_RESP[7] = (uint8_t)(StreamingMode);
                     CANSendMSG(CANID_tmp, CAN_RESP);
                     break;
 
-                case icmdFlashStart:            // Start Flash Recording
-                    // Set the flash index to the user flash space and return the index
-                    FlashIndex = FlashUserSpace;
-                    CAN_RESP[4] = (uint8_t)(FlashIndex >> 24);
-                    CAN_RESP[5] = (uint8_t)(FlashIndex >> 16);
-                    CAN_RESP[6] = (uint8_t)(FlashIndex >> 8);
-                    CAN_RESP[7] = (uint8_t)(FlashIndex);
+                case icmdStreamingStatus:
+                    CAN_RESP[4] = (uint8_t)(StreamingMode >> 24);
+                    CAN_RESP[5] = (uint8_t)(StreamingMode >> 16);
+                    CAN_RESP[6] = (uint8_t)(StreamingMode >> 8);
+                    CAN_RESP[7] = (uint8_t)(StreamingMode);
                     CANSendMSG(CANID_tmp, CAN_RESP);
                     break;
 
-                case icmdFlashSetSampleSize:    // Set Flash Sample Size
-                    // Set the sample size and return it
-                    if (CANVAL_tmp == 0 || CANVAL_tmp > 0x10000) CANVAL_tmp = 0x10000;
-                    FlashSampleSize = CANVAL_tmp;
-                    CAN_RESP[4] = (uint8_t)(FlashSampleSize >> 24);
-                    CAN_RESP[5] = (uint8_t)(FlashSampleSize >> 16);
-                    CAN_RESP[6] = (uint8_t)(FlashSampleSize >> 8);
-                    CAN_RESP[7] = (uint8_t)(FlashSampleSize);
+                case icmdStreamBufferSet:    // Set Buffer size
+                    // StreamBufferSize = 8192
+                    if (CANVAL_tmp == 0 || CANVAL_tmp > 32768) CANVAL_tmp = 8192;
+                    StreamBufferSize = CANVAL_tmp;
+                    CAN_RESP[4] = (uint8_t)(StreamBufferSize >> 24);
+                    CAN_RESP[5] = (uint8_t)(StreamBufferSize >> 16);
+                    CAN_RESP[6] = (uint8_t)(StreamBufferSize >> 8);
+                    CAN_RESP[7] = (uint8_t)(StreamBufferSize);
                     CANSendMSG(CANID_tmp, CAN_RESP);
                     break;
-
-                case icmdFlashStatus:           // Get Flash Status
-                    // Calculate the percentage of flash space used
-                    CANVAL_tmp = ((FlashIndex - FlashUserSpace) / FlashSampleSize) * 100;
-                    CAN_RESP[4] = (uint8_t)(CANVAL_tmp >> 24);
-                    CAN_RESP[5] = (uint8_t)(CANVAL_tmp >> 16);
-                    CAN_RESP[6] = (uint8_t)(CANVAL_tmp >> 8);
-                    CAN_RESP[7] = (uint8_t)(CANVAL_tmp);
-                    CANSendMSG(CANID_tmp, CAN_RESP);
-                    break;
-
-                case icmdFlashGetData:          // Fetch raw data from flash memory
-                    // Send size of sample with first response
-                    CANVAL_tmp = FlashSampleSize;
-                    CAN_RESP[4] = (uint8_t)(CANVAL_tmp >> 24);
-                    CAN_RESP[5] = (uint8_t)(CANVAL_tmp >> 16);
-                    CAN_RESP[6] = (uint8_t)(CANVAL_tmp >> 8);
-                    CAN_RESP[7] = (uint8_t)(CANVAL_tmp);
-                    CANSendMSG(CANID_tmp,CAN_RESP);
-                    for(lop=FlashUserSpace;lop <= FlashUserSpace+FlashSampleSize;lop+=4)
-                    {
-                           CANVAL_tmp = *((uint32_t *)lop);
-                           CAN_RESP[4] = (uint8_t)(CANVAL_tmp >> 24);
-                           CAN_RESP[5] = (uint8_t)(CANVAL_tmp >> 16);
-                           CAN_RESP[6] = (uint8_t)(CANVAL_tmp >> 8);
-                           CAN_RESP[7] = (uint8_t)(CANVAL_tmp);
-                           CANSendMSG(CANID_tmp,CAN_RESP);
-                    }
-                   CANVAL_tmp = 0x0;    // Dend zero to end stream
-                   CAN_RESP[4] = (uint8_t)(CANVAL_tmp >> 24);
-                   CAN_RESP[5] = (uint8_t)(CANVAL_tmp >> 16);
-                   CAN_RESP[6] = (uint8_t)(CANVAL_tmp >> 8);
-                   CAN_RESP[7] = (uint8_t)(CANVAL_tmp);
-                   CANSendMSG(CANID_tmp,CAN_RESP);
-                   break;
-            }
 
             // Reset the new message flag and set the heartbeat timer
             bit_clear(CAN_RECV.FLAGS, CAN_F_NEW);
@@ -1020,55 +735,31 @@ int main(void)
             bit_clear(CAN_RECV.FLAGS, CAN_F_OVERRUN);
         }
 
-        // Process any I2C commands received
-        if (I2C_RcvNewCommand)
-        {
-            switch (I2C_RcvCommand)
-            {
-                case icmdReadVersion:       // Read Version
-                    I2C_SendData(BuildVersion);
-                    break;
-
-                case icmdReadData:          // Read Sensor Data
-                    circ_bbuf_pop(&SensorBuf, &BufDataVar);
-                    I2C_SendData(BufDataVar);
-                    break;
-
-                case icmdFlashReadPos:      // Read Flash Memory Position
-                    I2C_SendData(FlashIndex);
-                    break;
-
-                case icmdFlashEraseFull:    // Erase Flash Memory
-                    FlashErase(FlashUserSpace);
-                    break;
-
-                case icmdFlashStart:        // Start Flash Recording
-                    FlashIndex = FlashUserSpace;
-                    break;
-            }
-            I2C_RcvNewCommand = false;      // Reset the I2C new command flag
-        }
-
         // Check if it's time to send a heartbeat message (every 10 seconds)
-        if (GlobalTimer > HeatbeatTrigger)
+        if(StreamingMode == smStopped)
         {
-            // Prepare and send a heartbeat message with the global timer value
-            CAN_RESP[0] = 0x08;  // Message length
-            CAN_RESP[1] = (CAN_ID >> 8) & 0xFF;
-            CAN_RESP[2] = CAN_ID & 0xFF;
-            CAN_RESP[3] = 0x7F;  // Heartbeat command
-            CAN_RESP[4] = (uint8_t)(GlobalTimer >> 24);
-            CAN_RESP[5] = (uint8_t)(GlobalTimer >> 16);
-            CAN_RESP[6] = (uint8_t)(GlobalTimer >> 8);
-            CAN_RESP[7] = (uint8_t)(GlobalTimer);
+            if (GlobalTimer > HeatbeatTrigger)
+            {
+                // Prepare and send a heartbeat message with the global timer value
+                CAN_RESP[0] = 0x08;  // Message length
+                CAN_RESP[1] = (CAN_ID >> 8) & 0xFF;
+                CAN_RESP[2] = CAN_ID & 0xFF;
+                CAN_RESP[3] = 0x7F;  // Heartbeat command
+                CAN_RESP[4] = (uint8_t)(GlobalTimer >> 24);
+                CAN_RESP[5] = (uint8_t)(GlobalTimer >> 16);
+                CAN_RESP[6] = (uint8_t)(GlobalTimer >> 8);
+                CAN_RESP[7] = (uint8_t)(GlobalTimer);
 
-                     CANSendMSG(0x7DF, CAN_RESP);  // Send heartbeat message to broadcast address
+                 CANSendMSG(0x7DF, CAN_RESP);  // Send heartbeat message to broadcast address
 
-                     // Reset the heartbeat timer
-                     HeatbeatTrigger = GlobalTimer + HeartBeatTime;
-                 }
-
-                 // Call the CAN interrupt handler to process incoming messages
-                 IntCAN0Handler();
+                 // Reset the heartbeat timer
+                 HeatbeatTrigger = GlobalTimer + HeartBeatTime;
              }
+
+             // Call the CAN interrupt handler to process incoming messages
+             IntCAN0Handler();
          }
+      }
+    }
+}
+
