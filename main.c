@@ -73,10 +73,10 @@ uint8_t CAN_BUF[8];
 
 #define icmdReadVersion         0x01  // Command to read the version of the sensor
 #define icmdStreamRealtime      0x02  // Command to streamed data without buffering.
-#define icmdStopStreaming       0x03  // Command to stop all streaming
-#define icmdStreamBuffered      0x04  // Command to streamed data from double cache buffer.
+#define icmdStreamBuffered      0x03  // Command to streamed data from double cache buffer.
+#define icmdStopStreaming       0x04  // Command to stop all streaming
 #define icmdStreamingStatus     0x05  // Command to information on streaming buffer.
-#define icmdStreamBufferSet     0x06  // Command to set stream buffer size. (double buffers so double this will be memory usage)
+
 
 //*****************************************************************************
 //
@@ -85,7 +85,7 @@ uint8_t CAN_BUF[8];
 //*****************************************************************************
 
 #define SYSTICK_TIMING   1000      // SysTick timer set to 1 millisecond intervals
-#define ADC_ReadTimeOut 100        // Timeout for ADC reads
+#define ADC_ReadTimeOut  100        // Timeout for ADC reads
 
 uint32_t GlobalTimer = 0;          // Global timer for various time-based operations
 #define HeartBeatTime 10000        // Heart beat signal interval (10 seconds)
