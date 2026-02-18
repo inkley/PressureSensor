@@ -1,19 +1,41 @@
-/*
- Author:    Jerry Black
- User:      Tyler Inkley
-
-Inkley_PressureSensor
-
-• Designed for use with an evaluation board equipped with pressure sensors
-• Collects real-time pressure sensor data and temporarily stores it in a circular buffer in RAM
-• Provides the option to store sensor data permanently in the Tiva chip's flash memory
-• Supports communication with external modules over the CAN bus for data exchange and control
-• Implements CAN commands for retrieving sensor data, managing flash memory (start, erase, read), and setting sample sizes
-• Provides I2C communication for additional command flexibility, allowing interaction with sensor data and memory functions
-• Sends periodic heartbeat messages over CAN to signal system activity and health
-• The system is designed to handle overrun conditions in CAN communication and to ensure the integrity of stored data
-• Includes SysTick-based interrupts for timed operations and ADC sampling for sensor readings
-*/
+/******************************************************************************
+ * File:        main.c
+ * Project:     Inkley_PressureSensor (TM4C / Tiva C)
+ * Author:      Tyler Inkley
+ *
+ * Description:
+ *   Firmware for a two-channel differential pressure sensor evaluation module.
+ *   Samples two ADC channels at a fixed rate (nominal 1000 Hz) and supports:
+ *     - Real-time streaming of packed Pressure1/Pressure2 ADC counts over CAN
+ *     - CAN command/response control interface (version, start/stop, status, etc.)
+ *     - Periodic heartbeat messages for basic �alive� indication when idle
+ *
+ * Data Output (Realtime Broadcast):
+ *   CAN ID: CAN_BC_ID (0x7DF), 8-byte payload
+ *     [0] = frame type (0x05)
+ *     [1] = packed sensor id (0x12)
+ *     [2..3] = Pressure1 (uint16, big-endian)  // ADC0 SS2 step0 (PE3 / CH0)
+ *     [4..5] = Pressure2 (uint16, big-endian)  // ADC0 SS2 step1 (PE2 / CH1)
+ *     [6..7] = reserved (0)
+ *
+ * Command Interface (Unicast):
+ *   RX CAN ID: CAN_ID (0x107)
+ *   Incoming payload (8 bytes):
+ *     [0] = command
+ *     [1..2] = response CAN ID (destination for ACK/response)
+ *     [3..6] = uint32 value (argument), big-endian
+ *     [7] = reserved
+ *   Responses:
+ *     8-byte payload: [0]=len, [1..2]=src id, [3]=cmd echo, [4..7]=uint32 value
+ *
+ * Notes:
+ *   - CAN receive buffer is ISR-written and main-loop read; volatile-safe copy
+ *     helpers are used to avoid casting away volatile.
+ *   - CANSendMSG_Obj() allows caller-selected TX mailbox usage.
+ *
+ * Revision / Build:
+ *   BuildVersion: 1003
+ ******************************************************************************/
 
 //*****************************************************************************
 //
@@ -24,6 +46,7 @@ Inkley_PressureSensor
 // Standard C libraries
 #include <stdbool.h>                // For boolean types
 #include <stdint.h>                 // For fixed-width integer types
+#include <string.h>                 // For memcpy(), memset(), and other standard string/memory utilities
 
 // Tiva C Series-specific hardware headers (memory mapping, interrupts, peripherals)
 #include "inc/hw_memmap.h"          // Memory map definitions for the Tiva C Series
@@ -48,11 +71,42 @@ Inkley_PressureSensor
 
 //*****************************************************************************
 //
+// Volatile-safe memory helpers
+//
+// The CAN receive structure (CAN_RECV) is declared volatile because it is
+// written inside an interrupt service routine (ISR) and read in main().
+// Standard memcpy()/memset() take non-volatile pointers (void*), which triggers
+// compiler warnings when used with volatile buffers.
+//
+// These helpers perform simple byte-wise operations so we can safely initialize
+// or copy volatile buffers without casting away volatile.
+//
+//*****************************************************************************
+static void vmemset(volatile uint8_t *dst, uint8_t val, uint32_t n)
+{
+    uint32_t i;
+    for (i = 0; i < n; i++)
+    {
+        dst[i] = val;
+    }
+}
+
+static void vmemcpy(volatile uint8_t *dst, const uint8_t *src, uint32_t n)
+{
+    uint32_t i;
+    for (i = 0; i < n; i++)
+    {
+        dst[i] = src[i];
+    }
+}
+
+//*****************************************************************************
+//
 // Global Settings and Sensor Commands
 //
 //*****************************************************************************
 
-uint32_t BuildVersion = 1002;       // Firmware version for this build
+uint32_t BuildVersion = 1003;       // Firmware version for this build
 
 // Time Out
 uint32_t TimeOutCounter = 0;
@@ -70,13 +124,12 @@ uint32_t TimeOutCounter = 0;
 uint8_t CAN_BUF[8];
 
 // Inkley Sensor Commands
-
-#define icmdReadVersion         0x01  // Command to read the version of the sensor
-#define icmdStreamRealtime      0x02  // Command to streamed data without buffering.
-#define icmdStreamBuffered      0x03  // Command to streamed data from double cache buffer.
-#define icmdStopStreaming       0x04  // Command to stop all streaming
-#define icmdStreamingStatus     0x05  // Command to information on streaming buffer.
-
+#define icmdReadVersion         0x01  // Request firmware version (returns BuildVersion)
+#define icmdStreamRealtime      0x02  // Start real-time streaming (no RAM buffering)
+#define icmdStreamBuffered      0x03  // Start streaming from RAM/flash buffer (if implemented)
+#define icmdStopStreaming       0x04  // Stop all streaming modes
+#define icmdStreamingStatus     0x05  // Query current streaming mode / status
+#define icmdStreamBufferSet     0x06  // Set stream buffer size (bytes/samples) for buffered mode
 
 //*****************************************************************************
 //
@@ -141,12 +194,22 @@ uint32_t SensorBufferData[SENSORBUFSIZE]; // Array to hold sensor data
 //*****************************************************************************
 
 typedef struct {
-    char FLAGS;            // Status flags for the CAN message (e.g., new message, overrun)
-    short ID;              // CAN message ID
-    char MSG[8];           // CAN message data (up to 8 bytes)
+    uint8_t  FLAGS;             // Bitfield: CAN_F_NEW, CAN_F_OVERRUN, etc.
+    uint32_t ID;                // Received CAN message ID (11-bit standard fits here)
+    uint8_t  MSG[8];            // Received CAN payload (8 bytes)
 } CAN_MSG_T;
 
-CAN_MSG_T CAN_RECV;        // Global variable to store the received CAN message
+volatile CAN_MSG_T CAN_RECV;    // Updated in CAN ISR, read in main loop
+
+//*****************************************************************************
+//
+// Function Prototypes
+//
+//*****************************************************************************
+uint32_t CANSendMSG(unsigned long CANID, uint8_t *pui8MsgData);
+uint32_t CANSendMSG_Obj(unsigned long CANID, uint8_t *pui8MsgData, uint32_t txObj);
+void CANListenerStd(int MsgObj);
+void IntCAN0Handler(void);   // CAN0 interrupt service routine (name must match startup vector)
 
 //*****************************************************************************
 //
@@ -247,47 +310,40 @@ bool bit_check(uint32_t number, uint32_t bit)
 
 void SysTickIntHandler(void)
 {
-    uint32_t pui32ADC0Value[1];  // Buffer to store ADC result
+    uint32_t adcVals[2];
 
-    // Trigger an ADC read (ADC0, sequencer 3); SysTick is set to trigger every 1ms
-    ADCProcessorTrigger(ADC0_BASE, 3);
+    ADCProcessorTrigger(ADC0_BASE, 2);
     TimeOutCounter = 0;
 
-    // Wait for the ADC conversion to complete or timeout
-    while (!ADCIntStatus(ADC0_BASE, 3, false))
+    while(!ADCIntStatus(ADC0_BASE, 2, false))
     {
-        if (TimeOutCounter++ > ADC_ReadTimeOut)
+        if(TimeOutCounter++ > ADC_ReadTimeOut)
         {
-            // If timeout occurs, clear the interrupt and return
-            ADCIntClear(ADC0_BASE, 3);
+            ADCIntClear(ADC0_BASE, 2);
             return;
         }
     }
 
-    // Clear the ADC interrupt once data is ready
-    ADCIntClear(ADC0_BASE, 3);
+    ADCIntClear(ADC0_BASE, 2);
+    ADCSequenceDataGet(ADC0_BASE, 2, adcVals);  // [0]=CH0(PE3), [1]=CH1(PE2)
 
-    // Retrieve the ADC data (from sequencer 3) and store it in the buffer
-    ADCSequenceDataGet(ADC0_BASE, 3, pui32ADC0Value);
-
-    switch(StreamingMode)
+    if (StreamingMode == smRealTime)
     {
-        case smStopped:
-            break;
-        case smRealTime:
-            CAN_BUF[0]=0x05;
-            CAN_BUF[1]=PressureSensor1;
-            CAN_BUF[4] = (uint8_t)(pui32ADC0Value[0] >> 24);
-            CAN_BUF[5] = (uint8_t)(pui32ADC0Value[0] >> 16);
-            CAN_BUF[6] = (uint8_t)(pui32ADC0Value[0] >> 8);
-            CAN_BUF[7] = (uint8_t)(pui32ADC0Value[0]);
-            CANSendMSG(CAN_BC_ID, CAN_BUF);
-            break;
-        case smBuffered:
-            break;
+        uint16_t p1 = (uint16_t)(adcVals[0] & 0x0FFF);
+        uint16_t p2 = (uint16_t)(adcVals[1] & 0x0FFF);
+
+        CAN_BUF[0] = 0x05;   // frame type
+        CAN_BUF[1] = 0x12;   // packed P1+P2 id
+        CAN_BUF[2] = (uint8_t)(p1 >> 8);
+        CAN_BUF[3] = (uint8_t)(p1);
+        CAN_BUF[4] = (uint8_t)(p2 >> 8);
+        CAN_BUF[5] = (uint8_t)(p2);
+        CAN_BUF[6] = 0x00;
+        CAN_BUF[7] = 0x00;
+
+        CANSendMSG_Obj(CAN_BC_ID, CAN_BUF, 31);
     }
 
-    // Increment the global timer for time-based operations
     GlobalTimer++;
 }
 
@@ -301,27 +357,24 @@ void SysTickIntHandler(void)
 
 void Init_ADC()
 {
-    // Enable the ADC0 peripheral
     SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
-
-    // Enable GPIO Port E for the ADC pins (PE2 and PE3)
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
 
-    // Configure the GPIO pins for ADC input (PE2, PE3)
+    // PE3 = AIN0 (CH0) -> Pressure1
+    // PE2 = AIN1 (CH1) -> Pressure2
     GPIOPinTypeADC(GPIO_PORTE_BASE, GPIO_PIN_3 | GPIO_PIN_2);
 
-    // Configure ADC sequencer 3 to be triggered by the processor
-    ADCSequenceConfigure(ADC0_BASE, 3, ADC_TRIGGER_PROCESSOR, 0);
+    // Use Sequencer 2 (SS2) because SS3 only supports 1 sample
+    ADCSequenceConfigure(ADC0_BASE, 2, ADC_TRIGGER_PROCESSOR, 0);
 
-    // Configure the steps in the ADC sequence; this configures sequencer step 0 to
-    // read channel 0 (ADC_CTL_CH0), generate an interrupt, and end the sequence
-    ADCSequenceStepConfigure(ADC0_BASE, 3, 0, ADC_CTL_D | ADC_CTL_CH0 | ADC_CTL_IE | ADC_CTL_END);
+    // Step 0: CH0
+    ADCSequenceStepConfigure(ADC0_BASE, 2, 0, ADC_CTL_CH0);
 
-    // Enable ADC sequencer 3 for sampling
-    ADCSequenceEnable(ADC0_BASE, 3);
+    // Step 1: CH1 + interrupt + end
+    ADCSequenceStepConfigure(ADC0_BASE, 2, 1, ADC_CTL_CH1 | ADC_CTL_IE | ADC_CTL_END);
 
-    // Clear any pending ADC interrupts to ensure a clean start
-    ADCIntClear(ADC0_BASE, 3);
+    ADCSequenceEnable(ADC0_BASE, 2);
+    ADCIntClear(ADC0_BASE, 2);
 }
 
 //*****************************************************************************
@@ -396,51 +449,58 @@ uint32_t CANPollCheck(unsigned char *candata, int MsgID, unsigned char Response)
 
 void IntCAN0Handler(void)
 {
-    uint32_t ulStatus, ulNewData;           // Variables to store interrupt and new data status
-    tCANMsgObject tempCANMsgObject;         // Temporary CAN message object
-    uint8_t CANMsg[8];                      // Buffer to hold received CAN data (8 bytes)
-    unsigned char CANSlot = 1;              // Slot in which the CAN message will be stored
+    uint32_t ulStatus;                    // Variable to store interrupt cause / message object number
+    tCANMsgObject tempCANMsgObject;       // Temporary CAN message object
+    uint8_t CANMsg[8];                    // Buffer to hold received CAN data (8 bytes)
+    uint32_t MsgObj;                      // Message object number that generated the interrupt
 
     // Set up the temporary CAN message object to receive 8 bytes of data
     tempCANMsgObject.pui8MsgData = CANMsg;
-    tempCANMsgObject.ui32MsgLen = 8;
+    tempCANMsgObject.ui32MsgLen  = 8;
 
-    // Get the cause of the interrupt and clear it
+    // Get the cause of the interrupt
     ulStatus = CANIntStatus(CAN0_BASE, CAN_INT_STS_CAUSE);
-    CANIntClear(CAN0_BASE, ulStatus);
 
-    // If the interrupt is not a controller status interrupt, handle it
-    if (ulStatus != CAN_INT_INTID_STATUS)
+    // If this is a controller status interrupt, read/clear status and return
+    if (ulStatus == CAN_INT_INTID_STATUS)
     {
-        // Get the controller status
-        ulStatus = CANStatusGet(CAN0_BASE, CAN_STS_CONTROL);
+        // Get the controller status (clears error/status sources internally)
+        (void)CANStatusGet(CAN0_BASE, CAN_STS_CONTROL);
 
-        // Check if new data is available on the CAN bus
-        ulNewData = CANStatusGet(CAN0_BASE, CAN_STS_NEWDAT);
+        // Clear the interrupt in the controller
+        CANIntClear(CAN0_BASE, ulStatus);
+        return;
+    }
 
-        if (ulNewData)
+    // Otherwise, ulStatus is the message object number that caused the interrupt
+    MsgObj = ulStatus;
+
+    // Clear the interrupt for this message object
+    CANIntClear(CAN0_BASE, MsgObj);
+
+    // Get the CAN message and clear NEWDAT for this message object ('true' clears it)
+    CANMessageGet(CAN0_BASE, MsgObj, &tempCANMsgObject, true);
+
+    // If the message ID matches our CAN_ID, process it
+    if (tempCANMsgObject.ui32MsgID == CAN_ID)
+    {
+        CAN_RECV.ID = tempCANMsgObject.ui32MsgID;                       // Store the message ID (no cast)
+
+        // Copy the 8-byte payload into the volatile receive buffer.
+        //
+        // CAN_RECV.MSG is volatile because it is shared between the CAN ISR (writer)
+        // and main() (reader). Standard memcpy() takes a non-volatile void* destination,
+        // which triggers a compiler warning if we pass a volatile buffer.
+        //
+        // vmemcpy() performs a simple byte-wise copy without casting away volatile.
+        vmemcpy(CAN_RECV.MSG, CANMsg, 8);
+
+        // Check if there is already a message in the buffer (overrun condition)
+        if (bit_check(CAN_RECV.FLAGS, CAN_F_NEW))
         {
-            // Check if there is new data for the specified CAN slot
-            if (ulNewData & (1 << (CANSlot - 1)))
-            {
-                // Get the CAN message and clear the pending flag
-                CANMessageGet(CAN0_BASE, CANSlot, &tempCANMsgObject, true);
-
-                // If the message ID matches our CAN_ID, process it
-                if (tempCANMsgObject.ui32MsgID == CAN_ID)
-                {
-                    CAN_RECV.ID = tempCANMsgObject.ui32MsgID;   // Store the message ID
-                    memcpy(CAN_RECV.MSG, CANMsg, 8);            // Copy the message data to the CAN_RECV buffer
-
-                    // Check if there is already a message in the buffer (overrun condition)
-                    if (bit_check(CAN_RECV.FLAGS, CAN_F_NEW))
-                    {
-                        CAN_RECV.FLAGS = bit_set(CAN_RECV.FLAGS, CAN_F_OVERRUN);    // Set the overrun flag
-                    }
-                    CAN_RECV.FLAGS = bit_set(CAN_RECV.FLAGS, CAN_F_NEW);            // Set the flag indicating a new message
-                }
-            }
+            CAN_RECV.FLAGS = (uint8_t)bit_set(CAN_RECV.FLAGS, CAN_F_OVERRUN);    // Set the overrun flag
         }
+        CAN_RECV.FLAGS = (uint8_t)bit_set(CAN_RECV.FLAGS, CAN_F_NEW);            // Set the flag indicating a new message
     }
 }
 
@@ -532,27 +592,72 @@ uint32_t CANSendMSG(unsigned long CANID, uint8_t *pui8MsgData)
 
 //*****************************************************************************
 //
-// CANListnerEX: Sets up a CAN message object for receiving data; this function
-// configures a message object to use an extended ID filter and allocates space
-// for receiving 8 bytes of data
+// CANSendMSG_Obj: Sends an 8-byte message over the CAN bus using the specified
+// CAN ID and a caller-selected transmit message object (mailbox).
 //
-// \param MsgID - The message ID to configure for receiving
+// This is the same as CANSendMSG(), but allows the caller to choose which TX
+// message object number to use (e.g., to avoid collisions with other TX paths
+// or to dedicate separate mailboxes for different message types).
+//
+// \param CANID       - The CAN message ID to send
+// \param pui8MsgData - Pointer to the 8-byte data to send
+// \param txObj       - CAN message object number to use for transmission (1..32)
+//
+// \return 0 if successful, or 0xffffffff if a timeout occurred
 //
 //*****************************************************************************
 
-void CANListnerEX(int MsgID)
+uint32_t CANSendMSG_Obj(unsigned long CANID, uint8_t *pui8MsgData, uint32_t txObj)
 {
-    tCANMsgObject sMsgObjectRx;                                             // CAN message object for receiving data
+    unsigned long TimeOut = 0;
+    tCANMsgObject sCANMessage;
 
-    // Configure the message object to receive messages with extended IDs
-    sMsgObjectRx.ui32MsgID = 0;                                             // Accept all message IDs (no specific ID)
-    sMsgObjectRx.ui32MsgIDMask = 0;                                         // Mask for extended ID filtering
-    sMsgObjectRx.ui32Flags = MSG_OBJ_USE_ID_FILTER | MSG_OBJ_EXTENDED_ID;   // Use ID filter and extended ID
-    sMsgObjectRx.ui32MsgLen = 8;                                            // Expect 8 bytes of data
-    sMsgObjectRx.pui8MsgData = (unsigned char *)0xffffffff;                 // Set dummy data pointer
+    sCANMessage.ui32MsgID = CANID;
+    sCANMessage.ui32Flags = 0;
+    sCANMessage.ui32MsgLen = 8;
+    sCANMessage.pui8MsgData = pui8MsgData;
 
-    // Configure the CAN message object for receiving messages
-    CANMessageSet(CAN0_BASE, MsgID, &sMsgObjectRx, MSG_OBJ_TYPE_RX);
+    CANMessageSet(CAN0_BASE, txObj, &sCANMessage, MSG_OBJ_TYPE_TX);
+
+    while (CANStatusGet(CAN0_BASE, CAN_STS_TXREQUEST) != 0)
+    {
+        TimeOut++;
+        SysCtlDelay(SysCtlClockGet() / 30000);
+        if (TimeOut > 0x0001000) return 0xffffffff;
+    }
+    return 0;
+}
+
+
+//*****************************************************************************
+//
+// CANListenerStd: Configures a CAN message object (mailbox) to receive standard
+// 11-bit CAN frames that match this module's CAN_ID.
+//
+// This function sets up an RX mailbox with:
+//  - An 11-bit ID filter (ui32MsgID + ui32MsgIDMask)
+//  - RX interrupt enabled so the CAN ISR can be triggered on reception
+//  - An expected payload length of 8 bytes
+//
+// \param MsgObj - The CAN message object number (mailbox index) to configure
+//                 for reception (e.g., 1..32 on TM4C CAN controller).
+//
+// \note This config is intended for STANDARD (11-bit) CAN IDs. If your sender
+//       uses EXTENDED (29-bit) IDs, you must configure the mailbox differently.
+//
+//*****************************************************************************
+
+void CANListenerStd(int MsgObj)
+{
+    tCANMsgObject rx;
+
+    rx.ui32MsgID     = CAN_ID;                                          // Accept only frames with ID == CAN_ID (0x107)
+    rx.ui32MsgIDMask = 0x7FF;                                           // 11-bit mask (all bits must match)
+    rx.ui32Flags     = MSG_OBJ_USE_ID_FILTER | MSG_OBJ_RX_INT_ENABLE;   // Filter + RX interrupt
+    rx.ui32MsgLen    = 8;                                               // Expect 8 data bytes
+    rx.pui8MsgData = 0;                                                 // Data is provided when calling CANMessageGet() (ISR supplies buffer)
+
+    CANMessageSet(CAN0_BASE, MsgObj, &rx, MSG_OBJ_TYPE_RX);
 }
 
 //*****************************************************************************
@@ -602,7 +707,7 @@ void Init_CAN(uint32_t Baud)
     DelayMS(10);
 
     // Set up a CAN listener on mailbox 1 to receive broadcast messages
-    CANListnerEX(1);
+    CANListenerStd(1);
 
     // Small delay to ensure CAN listener is fully initialized
     DelayMS(10);
@@ -618,23 +723,50 @@ void Init_CAN(uint32_t Baud)
 
 int main(void)
 {
-    uint32_t BufDataVar = 0;            // Variable to store buffer data (from the sensor)
-    uint32_t CANID_tmp = 0;             // Temporary variable for the received CAN ID
-    uint32_t CANVAL_tmp = 0;            // Temporary variable for the received CAN value
-    uint32_t lop = 0;                   // Loop iterator variable
-    uint8_t CAN_RESP[8];                // Array for storing CAN response data
-    uint8_t CAN_CMD_REQUEST = 0;        // Stores the command requested via CAN
+    //*************************************************************************
+    // Local variables used in the main control loop
+    //*************************************************************************
+    uint32_t CANID_tmp  = 0;            // Parsed return CAN ID / destination ID extracted from received command
+    uint32_t CANVAL_tmp = 0;            // Parsed 32-bit value extracted from received CAN payload (command argument)
+    uint8_t  CAN_RESP[8];               // Outgoing CAN response payload (8-byte data field)
+    uint8_t  CAN_CMD_REQUEST = 0;       // Command byte from incoming CAN message (CAN_RECV.MSG[0])
 
-    // Set the system clock to 40MHz (SYSCTL_SYSDIV_10 = divide by 10, 400MHz PLL)
+    //*****************************************************************************
+    // Initialize the global CAN receive structure
+    //
+    // CAN_RECV is updated inside the CAN ISR and read/cleared in the main loop.
+    // Initializing it here ensures a known state before interrupts begin firing.
+    //
+    // NOTE: We use vmemset() instead of memset() because CAN_RECV.MSG is volatile
+    // (ISR-written), and standard memset() expects a non-volatile void*.
+    //*****************************************************************************
+    CAN_RECV.FLAGS = 0;                 // Clear NEW/OVERRUN status flags
+    CAN_RECV.ID    = 0;                 // Clear last received CAN ID
+    vmemset(CAN_RECV.MSG, 0, sizeof(CAN_RECV.MSG));  // Clear last received payload
+
+    //*************************************************************************
+    // System clock configuration
+    // Sets the MCU clock used by SysTick timing, ADC timing, CAN bit timing, etc.
+    // This config targets ~40 MHz system clock using the PLL and 16 MHz crystal.
+    //*************************************************************************
     SysCtlClockSet(SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
 
-    // Initialize system peripherals (ADC, SysTick, I2C, Circular Buffer, CAN)
+    //*************************************************************************
+    // Peripheral initialization
+    // Init_ADC():     Configure ADC0 sequencer for PE3(AIN0) + PE2(AIN1)
+    // Init_Systick(): Configure 1 ms SysTick ISR for periodic ADC sampling/streaming
+    // Init_CAN():     Configure CAN0 pins/bitrate/mailboxes and register ISR callback
+    //*************************************************************************
     Init_ADC();
     Init_Systick();
     Init_CAN(CAN_BAUD);
 
-    // Turn on CAN bus listener using mailbox 1
-    CANListnerEX(1);
+    //*************************************************************************
+    // Global interrupt enable
+    // Must be called AFTER peripheral setup so interrupts don't fire into
+    // uninitialized handlers/structures.
+    //*************************************************************************
+    IntMasterEnable();
 
     //*************************************************************************
     //
@@ -648,7 +780,7 @@ int main(void)
         if (bit_check(CAN_RECV.FLAGS, CAN_F_NEW))
         {
             // Clear the new message flag
-            CAN_RECV.FLAGS = bit_clear(CAN_RECV.FLAGS, CAN_F_NEW);
+            CAN_RECV.FLAGS = (uint8_t)bit_clear(CAN_RECV.FLAGS, CAN_F_NEW);
 
             // Extract the CAN ID and value from the received message
             CANID_tmp = (CAN_RECV.MSG[1] << 8) + CAN_RECV.MSG[2];
@@ -674,7 +806,7 @@ int main(void)
                     CAN_RESP[5] = (uint8_t)(BuildVersion >> 16);
                     CAN_RESP[6] = (uint8_t)(BuildVersion >> 8);
                     CAN_RESP[7] = (uint8_t)(BuildVersion);
-                    CANSendMSG(CANID_tmp, CAN_RESP);
+                    CANSendMSG_Obj(CANID_tmp, CAN_RESP, 32);
                     break;
 
                 case icmdStreamRealtime:
@@ -683,7 +815,7 @@ int main(void)
                     CAN_RESP[5] = (uint8_t)(StreamingMode >> 16);
                     CAN_RESP[6] = (uint8_t)(StreamingMode >> 8);
                     CAN_RESP[7] = (uint8_t)(StreamingMode);
-                    CANSendMSG(CANID_tmp, CAN_RESP);
+                    CANSendMSG_Obj(CANID_tmp, CAN_RESP, 32);
                     break;
 
                 case icmdStopStreaming:
@@ -692,7 +824,7 @@ int main(void)
                     CAN_RESP[5] = (uint8_t)(StreamingMode >> 16);
                     CAN_RESP[6] = (uint8_t)(StreamingMode >> 8);
                     CAN_RESP[7] = (uint8_t)(StreamingMode);
-                    CANSendMSG(CANID_tmp, CAN_RESP);
+                    CANSendMSG_Obj(CANID_tmp, CAN_RESP, 32);
                     break;
 
                 case icmdStreamBuffered:
@@ -701,7 +833,7 @@ int main(void)
                     CAN_RESP[5] = (uint8_t)(StreamingMode >> 16);
                     CAN_RESP[6] = (uint8_t)(StreamingMode >> 8);
                     CAN_RESP[7] = (uint8_t)(StreamingMode);
-                    CANSendMSG(CANID_tmp, CAN_RESP);
+                    CANSendMSG_Obj(CANID_tmp, CAN_RESP, 32);
                     break;
 
                 case icmdStreamingStatus:
@@ -709,7 +841,7 @@ int main(void)
                     CAN_RESP[5] = (uint8_t)(StreamingMode >> 16);
                     CAN_RESP[6] = (uint8_t)(StreamingMode >> 8);
                     CAN_RESP[7] = (uint8_t)(StreamingMode);
-                    CANSendMSG(CANID_tmp, CAN_RESP);
+                    CANSendMSG_Obj(CANID_tmp, CAN_RESP, 32);
                     break;
 
                 case icmdStreamBufferSet:    // Set Buffer size
@@ -720,11 +852,10 @@ int main(void)
                     CAN_RESP[5] = (uint8_t)(StreamBufferSize >> 16);
                     CAN_RESP[6] = (uint8_t)(StreamBufferSize >> 8);
                     CAN_RESP[7] = (uint8_t)(StreamBufferSize);
-                    CANSendMSG(CANID_tmp, CAN_RESP);
+                    CANSendMSG_Obj(CANID_tmp, CAN_RESP, 32);
                     break;
-
+            }
             // Reset the new message flag and set the heartbeat timer
-            bit_clear(CAN_RECV.FLAGS, CAN_F_NEW);
             HeatbeatTrigger = GlobalTimer + HeartBeatTime;
         }
 
@@ -732,11 +863,11 @@ int main(void)
         if (bit_check(CAN_RECV.FLAGS, CAN_F_OVERRUN))
         {
             // Clear the overrun flag
-            bit_clear(CAN_RECV.FLAGS, CAN_F_OVERRUN);
+            CAN_RECV.FLAGS = (uint8_t)bit_clear(CAN_RECV.FLAGS, CAN_F_OVERRUN);
         }
 
         // Check if it's time to send a heartbeat message (every 10 seconds)
-        if(StreamingMode == smStopped)
+        if (StreamingMode == smStopped)
         {
             if (GlobalTimer > HeatbeatTrigger)
             {
@@ -750,16 +881,11 @@ int main(void)
                 CAN_RESP[6] = (uint8_t)(GlobalTimer >> 8);
                 CAN_RESP[7] = (uint8_t)(GlobalTimer);
 
-                 CANSendMSG(0x7DF, CAN_RESP);  // Send heartbeat message to broadcast address
+                CANSendMSG(CAN_BC_ID, CAN_RESP);    // Send heartbeat message to broadcast address
 
-                 // Reset the heartbeat timer
-                 HeatbeatTrigger = GlobalTimer + HeartBeatTime;
-             }
-
-             // Call the CAN interrupt handler to process incoming messages
-             IntCAN0Handler();
-         }
-      }
-    }
-}
-
+                // Reset the heartbeat timer
+                HeatbeatTrigger = GlobalTimer + HeartBeatTime;
+            }
+        }
+    } // end while(1)
+} // end main()
