@@ -8,7 +8,7 @@
  *   Samples two ADC channels at a fixed rate (nominal 1000 Hz) and supports:
  *     - Real-time streaming of packed Pressure1/Pressure2 ADC counts over CAN
  *     - CAN command/response control interface (version, start/stop, status, etc.)
- *     - Periodic heartbeat messages for basic “alive” indication when idle
+ *     - Periodic heartbeat messages for basic ï¿½aliveï¿½ indication when idle
  *
  * Data Output (Realtime Broadcast):
  *   CAN ID: CAN_BC_ID (0x7DF), 8-byte payload
@@ -119,8 +119,8 @@ uint32_t TimeOutCounter = 0;
 
 // CAN Bus Settings
 #define CAN_ID      0x107           // CAN bus ID for the sensor module
-#define CAN_BC_ID   0x7DF           //CAN ID for sensor data broadcast.
-#define CAN_BAUD    500000          // CAN bus baud rate set to 500 Kbps
+#define CAN_BC_ID   0x7DF           // CAN ID for sensor data broadcast.
+#define CAN_BAUD    1000000         // CAN bus baud rate set to 1 Mbps
 uint8_t CAN_BUF[8];
 
 // Inkley Sensor Commands
@@ -158,6 +158,13 @@ uint32_t StreamBufferIndex = 0;
     #define smRealTime     0x01
     #define smBuffered     0x02
 uint32_t StreamingMode=smStopped;
+
+// Buffer sample holding for packing two samples into one CAN frame
+static bool g_hasPendingSample = false;
+static uint16_t g_pendingP1 = 0;
+static uint16_t g_pendingP2 = 0;
+
+#define FRAME_TYPE_P1P2_PACKED2 0x06  // Two module samples per CAN frame
 
 //*****************************************************************************
 //
@@ -332,16 +339,39 @@ void SysTickIntHandler(void)
         uint16_t p1 = (uint16_t)(adcVals[0] & 0x0FFF);
         uint16_t p2 = (uint16_t)(adcVals[1] & 0x0FFF);
 
-        CAN_BUF[0] = 0x05;   // frame type
-        CAN_BUF[1] = 0x12;   // packed P1+P2 id
-        CAN_BUF[2] = (uint8_t)(p1 >> 8);
-        CAN_BUF[3] = (uint8_t)(p1);
-        CAN_BUF[4] = (uint8_t)(p2 >> 8);
-        CAN_BUF[5] = (uint8_t)(p2);
-        CAN_BUF[6] = 0x00;
-        CAN_BUF[7] = 0x00;
+        // Pack two consecutive samples (p1/p2) into one 8-byte CAN frame to reduce bus load.
+        // Frame layout (8 bytes):
+        // [0] = frame type (0x06)
+        // [1] = sensor/module ID (0x12)
+        // [2..4] = sample A (p1, p2) packed as 12-bit values
+        // [5..7] = sample B (p1, p2) packed as 12-bit values (second sample)
 
-        CANSendMSG_Obj(CAN_BC_ID, CAN_BUF, 31);
+        if (!g_hasPendingSample)
+        {
+            // Store first sample and wait for the next tick to send.
+            g_pendingP1 = p1;
+            g_pendingP2 = p2;
+            g_hasPendingSample = true;
+        }
+        else
+        {
+            // Send a packed frame containing the previous sample + current sample
+            CAN_BUF[0] = FRAME_TYPE_P1P2_PACKED2;
+            CAN_BUF[1] = 0x12;
+
+            // Previous sample (A)
+            CAN_BUF[2] = (uint8_t)(g_pendingP1 >> 4);
+            CAN_BUF[3] = (uint8_t)((g_pendingP1 & 0x0F) << 4) | (uint8_t)((g_pendingP2 >> 8) & 0x0F);
+            CAN_BUF[4] = (uint8_t)(g_pendingP2 & 0xFF);
+
+            // Current sample (B)
+            CAN_BUF[5] = (uint8_t)(p1 >> 4);
+            CAN_BUF[6] = (uint8_t)((p1 & 0x0F) << 4) | (uint8_t)((p2 >> 8) & 0x0F);
+            CAN_BUF[7] = (uint8_t)(p2 & 0xFF);
+
+            CANSendMSG_Obj(CAN_BC_ID, CAN_BUF, 31);
+            g_hasPendingSample = false;
+        }
     }
 
     GlobalTimer++;
@@ -811,6 +841,8 @@ int main(void)
 
                 case icmdStreamRealtime:
                     StreamingMode = smRealTime;
+                    // Reset any pending sample when starting real-time streaming.
+                    g_hasPendingSample = false;
                     CAN_RESP[4] = (uint8_t)(StreamingMode >> 24);
                     CAN_RESP[5] = (uint8_t)(StreamingMode >> 16);
                     CAN_RESP[6] = (uint8_t)(StreamingMode >> 8);
@@ -820,6 +852,8 @@ int main(void)
 
                 case icmdStopStreaming:
                     StreamingMode = smStopped;
+                    // Clear pending buffer when streaming stops
+                    g_hasPendingSample = false;
                     CAN_RESP[4] = (uint8_t)(StreamingMode >> 24);
                     CAN_RESP[5] = (uint8_t)(StreamingMode >> 16);
                     CAN_RESP[6] = (uint8_t)(StreamingMode >> 8);
