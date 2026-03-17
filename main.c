@@ -140,9 +140,9 @@ uint8_t CAN_BUF[8];
 #define SYSTICK_TIMING   1000      // SysTick timer set to 1 millisecond intervals
 #define ADC_ReadTimeOut  100        // Timeout for ADC reads
 
-uint32_t GlobalTimer = 0;          // Global timer for various time-based operations
+volatile uint32_t GlobalTimer = 0;          // Global timer for various time-based operations (incremented in SysTick ISR)
 #define HeartBeatTime 10000        // Heart beat signal interval (10 seconds)
-uint32_t HeatbeatTrigger = 0;      // Timer to track heart beat signals
+volatile uint32_t HeatbeatTrigger = 0;      // Timer to track heart beat signals
 
 //*****************************************************************************
 //
@@ -150,19 +150,20 @@ uint32_t HeatbeatTrigger = 0;      // Timer to track heart beat signals
 //
 //*****************************************************************************
 
-uint8_t Streaming = 0;
-uint32_t StreamBufferSize = 8192;
-uint32_t StreamBufferIndex = 0;
-
+// Streaming mode is used by the SysTick ISR and the main loop; mark volatile.
     #define smStopped      0x00
     #define smRealTime     0x01
     #define smBuffered     0x02
-uint32_t StreamingMode=smStopped;
+volatile uint32_t StreamingMode = smStopped;
 
 // Buffer sample holding for packing two samples into one CAN frame
 static bool g_hasPendingSample = false;
 static uint16_t g_pendingP1 = 0;
 static uint16_t g_pendingP2 = 0;
+
+// Pending CAN TX frame produced by the SysTick ISR and consumed by the main loop.
+volatile bool g_can_tx_pending = false;
+uint8_t g_can_tx_msg[8];
 
 #define FRAME_TYPE_P1P2_PACKED2 0x06  // Two module samples per CAN frame
 
@@ -355,21 +356,26 @@ void SysTickIntHandler(void)
         }
         else
         {
-            // Send a packed frame containing the previous sample + current sample
-            CAN_BUF[0] = FRAME_TYPE_P1P2_PACKED2;
-            CAN_BUF[1] = 0x12;
+            // Prepare a packed frame containing the previous sample + current sample
+            // (defer actual CAN transmission to the main loop to keep ISR short)
+            g_can_tx_msg[0] = FRAME_TYPE_P1P2_PACKED2;
+            g_can_tx_msg[1] = 0x12;
 
             // Previous sample (A)
-            CAN_BUF[2] = (uint8_t)(g_pendingP1 >> 4);
-            CAN_BUF[3] = (uint8_t)((g_pendingP1 & 0x0F) << 4) | (uint8_t)((g_pendingP2 >> 8) & 0x0F);
-            CAN_BUF[4] = (uint8_t)(g_pendingP2 & 0xFF);
+            g_can_tx_msg[2] = (uint8_t)(g_pendingP1 >> 4);
+            g_can_tx_msg[3] = (uint8_t)((g_pendingP1 & 0x0F) << 4) | (uint8_t)((g_pendingP2 >> 8) & 0x0F);
+            g_can_tx_msg[4] = (uint8_t)(g_pendingP2 & 0xFF);
 
             // Current sample (B)
-            CAN_BUF[5] = (uint8_t)(p1 >> 4);
-            CAN_BUF[6] = (uint8_t)((p1 & 0x0F) << 4) | (uint8_t)((p2 >> 8) & 0x0F);
-            CAN_BUF[7] = (uint8_t)(p2 & 0xFF);
+            g_can_tx_msg[5] = (uint8_t)(p1 >> 4);
+            g_can_tx_msg[6] = (uint8_t)((p1 & 0x0F) << 4) | (uint8_t)((p2 >> 8) & 0x0F);
+            g_can_tx_msg[7] = (uint8_t)(p2 & 0xFF);
 
-            CANSendMSG_Obj(CAN_BC_ID, CAN_BUF, 31);
+            if (!g_can_tx_pending)
+            {
+                g_can_tx_pending = true;  // main loop will send this frame
+            }
+
             g_hasPendingSample = false;
         }
     }
@@ -920,6 +926,16 @@ int main(void)
                 // Reset the heartbeat timer
                 HeatbeatTrigger = GlobalTimer + HeartBeatTime;
             }
+        }
+
+        // Transmit any pending CAN frame prepared in the SysTick ISR.
+        // Doing CAN TX here keeps the ISR short and avoids blocking inside the ISR.
+        if (g_can_tx_pending)
+        {
+            uint8_t tx_msg[8];
+            memcpy(tx_msg, g_can_tx_msg, sizeof(tx_msg));
+            g_can_tx_pending = false;
+            CANSendMSG_Obj(CAN_BC_ID, tx_msg, 31);
         }
     } // end while(1)
 } // end main()

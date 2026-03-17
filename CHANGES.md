@@ -3,4 +3,6 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
-- Initial documentation added (README and CHANGES).
+- Avoid blocking in SysTick ISR: CAN transmit frames are now deferred to the main loop.
+- Mark shared timing/streaming state as `volatile` for safe ISR/main access.
+- Added pending CAN TX buffer for real-time streaming.
