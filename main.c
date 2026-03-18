@@ -69,6 +69,18 @@
 // Utility libraries for Tiva C Series
 #include "utils/uartstdio.h"        // UART standard I/O utility functions
 
+// Some older Stellaris/Tiva example code used FlashUnlock/FlashLock and
+// FlashSectorSizeGet(). In this SDK version the driverlib flash APIs do not
+// expose those symbols, so provide minimal stubs to keep this code working.
+//
+static inline void FlashUnlock(void) { /* driverlib flash functions handle unlocking */ }
+static inline void FlashLock(void)   { /* driverlib flash functions handle locking */ }
+static inline uint32_t FlashSectorSizeGet(uint32_t addr)
+{
+    (void)addr;
+    return 0x400; // 1KB flash sector size (TM4C123)
+}
+
 //*****************************************************************************
 //
 // Volatile-safe memory helpers
@@ -164,6 +176,8 @@ volatile uint32_t HeatbeatTrigger = 0;      // Timer to track heart beat signals
 //
 //*****************************************************************************
 
+#define SENSORBUFSIZE 4094                // Size of the circular buffer (4094 elements; matches flash capacity)
+
 // Streaming mode is used by the SysTick ISR and the main loop; mark volatile.
     #define smStopped      0x00
     #define smRealTime     0x01
@@ -172,6 +186,7 @@ volatile uint32_t StreamingMode = smStopped;
 
 // RAM sample buffering (used while recording before writing to flash)
 uint32_t StreamBufferCount = 0;        // Number of samples currently in RAM buffer
+uint32_t StreamBufferSize = SENSORBUFSIZE;     // Maximum number of samples to buffer before stopping
 bool StreamBufferFull = false;        // Indicates the RAM buffer has filled
 
 // Flash-backed storage state
@@ -188,6 +203,11 @@ static bool g_hasPendingSample = false;
 static uint16_t g_pendingP1 = 0;
 static uint16_t g_pendingP2 = 0;
 
+// When streaming, reduce CAN bus load by decimating transmission.
+// Set to 1 for full-rate (every Systick), 2 for half-rate, etc.
+#define STREAM_DECIMATE 2
+static uint32_t g_streamTick = 0;
+
 // Pending CAN TX frame produced by the SysTick ISR and consumed by the main loop.
 volatile bool g_can_tx_pending = false;
 uint8_t g_can_tx_msg[8];
@@ -200,7 +220,6 @@ uint8_t g_can_tx_msg[8];
 //
 //*****************************************************************************
 
-#define SENSORBUFSIZE 1024                // Size of the circular buffer (1024 elements)
 uint32_t SensorBufferData[SENSORBUFSIZE]; // Array to hold sensor data
 //circ_bbuf_t SensorBuf;                    // Circular buffer structure instance
 
@@ -360,6 +379,11 @@ static void FlashLog_Erase(void)
 
 static void FlashLog_Write(uint32_t *data, uint32_t count)
 {
+    uint32_t header_word;
+    uint32_t count_word;
+    uint32_t addr;
+    uint32_t i;
+
     if (count > FLASH_LOG_MAX_RECORDS)
     {
         count = FLASH_LOG_MAX_RECORDS;
@@ -370,15 +394,18 @@ static void FlashLog_Write(uint32_t *data, uint32_t count)
 
     FlashUnlock();
 
-    // Write header: magic + count
-    FlashProgram(FLASH_LOG_MAGIC, FLASH_LOG_BASE);
-    FlashProgram(count, FLASH_LOG_BASE + 4);
+    // Write header: magic + count (one word each)
+    header_word = FLASH_LOG_MAGIC;
+    FlashProgram(&header_word, FLASH_LOG_BASE, 1);
 
-    // Write payload
-    uint32_t addr = FLASH_LOG_BASE + 8;
-    for (uint32_t i = 0; i < count; i++)
+    count_word = count;
+    FlashProgram(&count_word, FLASH_LOG_BASE + 4, 1);
+
+    // Write payload (one word per record)
+    addr = FLASH_LOG_BASE + 8;
+    for (i = 0; i < count; i++)
     {
-        FlashProgram(data[i], addr);
+        FlashProgram(&data[i], addr, 1);
         addr += 4;
     }
 
@@ -442,58 +469,51 @@ void SysTickIntHandler(void)
         uint16_t p1 = (uint16_t)(adcVals[0] & 0x0FFF);
         uint16_t p2 = (uint16_t)(adcVals[1] & 0x0FFF);
 
-        // Store sample into RAM buffer (for later flash storage)
-        if (!StreamBufferFull)
-        {
-            if (StreamBufferCount < StreamBufferSize && StreamBufferCount < SENSORBUFSIZE)
-            {
-                SensorBufferData[StreamBufferCount++] = ((uint32_t)p1 << 16) | (uint32_t)p2;
-            }
-            else
-            {
-                StreamBufferFull = true;
-                StreamingMode = smStopped;
-            }
-        }
+        // Decimate transmission to reduce CAN bus load and avoid adapter/driver overflow.
+        // The module still samples at 1 kHz, but sends only once every STREAM_DECIMATE ticks.
+        g_streamTick++;
 
-        // Pack two consecutive samples (p1/p2) into one 8-byte CAN frame to reduce bus load.
-        // Frame layout (8 bytes):
-        // [0] = frame type (0x06)
-        // [1] = sensor/module ID (0x12)
-        // [2..4] = sample A (p1, p2) packed as 12-bit values
-        // [5..7] = sample B (p1, p2) packed as 12-bit values (second sample)
-
+        // Always keep the latest sample as the pending one.
         if (!g_hasPendingSample)
         {
-            // Store first sample and wait for the next tick to send.
             g_pendingP1 = p1;
             g_pendingP2 = p2;
             g_hasPendingSample = true;
+            return;
         }
-        else
+
+        // Only send a CAN frame on the configured decimation interval.
+        if ((g_streamTick % STREAM_DECIMATE) != 0)
         {
-            // Prepare a packed frame containing the previous sample + current sample
-            // (defer actual CAN transmission to the main loop to keep ISR short)
-            g_can_tx_msg[0] = FRAME_TYPE_P1P2_PACKED2;
-            g_can_tx_msg[1] = 0x12;
-
-            // Previous sample (A)
-            g_can_tx_msg[2] = (uint8_t)(g_pendingP1 >> 4);
-            g_can_tx_msg[3] = (uint8_t)((g_pendingP1 & 0x0F) << 4) | (uint8_t)((g_pendingP2 >> 8) & 0x0F);
-            g_can_tx_msg[4] = (uint8_t)(g_pendingP2 & 0xFF);
-
-            // Current sample (B)
-            g_can_tx_msg[5] = (uint8_t)(p1 >> 4);
-            g_can_tx_msg[6] = (uint8_t)((p1 & 0x0F) << 4) | (uint8_t)((p2 >> 8) & 0x0F);
-            g_can_tx_msg[7] = (uint8_t)(p2 & 0xFF);
-
-            if (!g_can_tx_pending)
-            {
-                g_can_tx_pending = true;  // main loop will send this frame
-            }
-
-            g_hasPendingSample = false;
+            // Update the pending sample for the next send.
+            g_pendingP1 = p1;
+            g_pendingP2 = p2;
+            return;
         }
+
+        // Prepare a packed frame containing the previous sample + current sample
+        // (defer actual CAN transmission to the main loop to keep ISR short)
+        g_can_tx_msg[0] = FRAME_TYPE_P1P2_PACKED2;
+        g_can_tx_msg[1] = 0x12;
+
+        // Previous sample (A)
+        g_can_tx_msg[2] = (uint8_t)(g_pendingP1 >> 4);
+        g_can_tx_msg[3] = (uint8_t)((g_pendingP1 & 0x0F) << 4) | (uint8_t)((g_pendingP2 >> 8) & 0x0F);
+        g_can_tx_msg[4] = (uint8_t)(g_pendingP2 & 0xFF);
+
+        // Current sample (B)
+        g_can_tx_msg[5] = (uint8_t)(p1 >> 4);
+        g_can_tx_msg[6] = (uint8_t)((p1 & 0x0F) << 4) | (uint8_t)((p2 >> 8) & 0x0F);
+        g_can_tx_msg[7] = (uint8_t)(p2 & 0xFF);
+
+        if (!g_can_tx_pending)
+        {
+            g_can_tx_pending = true;  // main loop will send this frame
+        }
+
+        // Update pending sample so the next frame sends the latest data.
+        g_pendingP1 = p1;
+        g_pendingP2 = p2;
     }
 
     GlobalTimer++;
@@ -987,15 +1007,15 @@ int main(void)
                         flash_has_record = (flash_record_count > 0);
                     }
 
-                    // Reset RAM buffer state
-                    StreamBufferCount = 0;
-                    StreamBufferFull = false;
+// Acknowledge stop streaming (no local storage behavior)
+                CAN_RESP[4] = 0;
+                CAN_RESP[5] = 0;
+                CAN_RESP[6] = 0;
+                CAN_RESP[7] = 0;
+
+                // Reset pending sample state used for packed CAN streaming
                     g_hasPendingSample = false;
 
-                    CAN_RESP[4] = (uint8_t)(StreamingMode >> 24);
-                    CAN_RESP[5] = (uint8_t)(StreamingMode >> 16);
-                    CAN_RESP[6] = (uint8_t)(StreamingMode >> 8);
-                    CAN_RESP[7] = (uint8_t)(StreamingMode);
                     CANSendMSG_Obj(CANID_tmp, CAN_RESP, 32);
                     break;
 

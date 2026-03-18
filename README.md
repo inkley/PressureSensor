@@ -16,4 +16,5 @@ This repository contains firmware and supporting code for the Inkley pressure se
 ## Notes
 
 - This repository currently contains generated build artifacts in `Debug/`; avoid committing those changes when possible.
+- If the firmware stops streaming after ~1 second, it may be due to CAN adapter buffering; adjust `STREAM_DECIMATE` in `main.c` to reduce bus load.
 - Use the `CHANGES.md` file to track release notes and notable changes.
