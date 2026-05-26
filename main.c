@@ -64,22 +64,9 @@
 #include "driverlib/uart.h"         // UART driver library
 #include "driverlib/i2c.h"          // I2C driver library
 #include "driverlib/systick.h"      // SysTick timer driver library
-#include "driverlib/flash.h"        // Flash memory driver library (for storing sensor data)
 
 // Utility libraries for Tiva C Series
 #include "utils/uartstdio.h"        // UART standard I/O utility functions
-
-// Some older Stellaris/Tiva example code used FlashUnlock/FlashLock and
-// FlashSectorSizeGet(). In this SDK version the driverlib flash APIs do not
-// expose those symbols, so provide minimal stubs to keep this code working.
-//
-static inline void FlashUnlock(void) { /* driverlib flash functions handle unlocking */ }
-static inline void FlashLock(void)   { /* driverlib flash functions handle locking */ }
-static inline uint32_t FlashSectorSizeGet(uint32_t addr)
-{
-    (void)addr;
-    return 0x400; // 1KB flash sector size (TM4C123)
-}
 
 //*****************************************************************************
 //
@@ -137,19 +124,12 @@ uint8_t CAN_BUF[8];
 
 // Inkley Sensor Commands
 #define icmdReadVersion         0x01  // Request firmware version (returns BuildVersion)
-#define icmdStreamRealtime      0x02  // Start real-time streaming (no RAM buffering)
-#define icmdStreamBuffered      0x03  // Start streaming from RAM/flash buffer (if implemented)
+#define icmdStreamRealtime      0x02  // Start real-time streaming with RAM buffering
+#define icmdStreamBuffered      0x03  // Dump buffered samples from RAM
 #define icmdStopStreaming       0x04  // Stop all streaming modes
 #define icmdStreamingStatus     0x05  // Query current streaming mode / status
 #define icmdStreamBufferSet     0x06  // Set stream buffer size (bytes/samples) for buffered mode
-#define icmdReadFlashData       0x07  // Read back stored flash data (stream on request)
-
-// Flash log storage configuration (last 16KB of flash)
-#define FLASH_LOG_BASE          0x0001C000
-#define FLASH_LOG_SIZE          0x00004000
-#define FLASH_LOG_MAGIC         0xA5A5A5A5
-#define FLASH_LOG_HEADER_WORDS  2
-#define FLASH_LOG_MAX_RECORDS   ((FLASH_LOG_SIZE / 4) - FLASH_LOG_HEADER_WORDS)
+#define icmdReadFlashData       0x07  // Historical payload tag for buffered sample frames
 
 //*****************************************************************************
 //
@@ -176,7 +156,7 @@ volatile uint32_t HeatbeatTrigger = 0;      // Timer to track heart beat signals
 //
 //*****************************************************************************
 
-#define SENSORBUFSIZE 4094                // Size of the circular buffer (4094 elements; matches flash capacity)
+#define SENSORBUFSIZE 4094                // Size of the circular RAM buffer (sample pairs)
 
 // Streaming mode is used by the SysTick ISR and the main loop; mark volatile.
     #define smStopped      0x00
@@ -184,19 +164,17 @@ volatile uint32_t HeatbeatTrigger = 0;      // Timer to track heart beat signals
     #define smBuffered     0x02
 volatile uint32_t StreamingMode = smStopped;
 
-// RAM sample buffering (used while recording before writing to flash)
+// RAM sample buffering
 uint32_t StreamBufferCount = 0;        // Number of samples currently in RAM buffer
 uint32_t StreamBufferSize = SENSORBUFSIZE;     // Maximum number of samples to buffer before stopping
 bool StreamBufferFull = false;        // Indicates the RAM buffer has filled
+uint32_t StreamBufferWriteIndex = 0;   // Next circular-buffer slot to write
 
-// Flash-backed storage state
-uint32_t flash_record_count = 0;
-bool flash_has_record = false;
-
-// Flash streaming state (responding to icmdReadFlashData)
-bool flash_streaming_active = false;
-uint32_t flash_stream_index = 0;
-uint32_t flash_stream_resp_id = 0;
+// RAM buffer dump state (responding to icmdStreamBuffered)
+bool buffer_streaming_active = false;
+uint32_t buffer_stream_index = 0;
+uint32_t buffer_stream_count = 0;
+uint32_t buffer_stream_resp_id = 0;
 
 // Buffer sample holding for packing two samples into one CAN frame
 static bool g_hasPendingSample = false;
@@ -356,84 +334,66 @@ bool bit_check(uint32_t number, uint32_t bit)
 
 //*****************************************************************************
 //
-// Flash Log Storage Helpers
+// RAM Buffer Storage Helpers
 //
 //*****************************************************************************
 
-static void FlashLog_Erase(void)
+static void StreamBuffer_Reset(void)
 {
-    uint32_t addr = FLASH_LOG_BASE;
-    uint32_t end_addr = FLASH_LOG_BASE + FLASH_LOG_SIZE;
-
-    // Ensure we have unlocked flash before erasing
-    FlashUnlock();
-
-    while (addr < end_addr)
-    {
-        FlashErase(addr);
-        addr += FlashSectorSizeGet(addr);
-    }
-
-    FlashLock();
+    StreamBufferCount = 0;
+    StreamBufferWriteIndex = 0;
+    StreamBufferFull = false;
 }
 
-static void FlashLog_Write(uint32_t *data, uint32_t count)
+static void StreamBuffer_Add(uint32_t packed_sample)
 {
-    uint32_t header_word;
-    uint32_t count_word;
-    uint32_t addr;
-    uint32_t i;
-
-    if (count > FLASH_LOG_MAX_RECORDS)
+    if (StreamBufferSize == 0)
     {
-        count = FLASH_LOG_MAX_RECORDS;
+        return;
     }
 
-    // Erase the log region before writing (must be erased before programming)
-    FlashLog_Erase();
-
-    FlashUnlock();
-
-    // Write header: magic + count (one word each)
-    header_word = FLASH_LOG_MAGIC;
-    FlashProgram(&header_word, FLASH_LOG_BASE, 1);
-
-    count_word = count;
-    FlashProgram(&count_word, FLASH_LOG_BASE + 4, 1);
-
-    // Write payload (one word per record)
-    addr = FLASH_LOG_BASE + 8;
-    for (i = 0; i < count; i++)
+    SensorBufferData[StreamBufferWriteIndex] = packed_sample;
+    StreamBufferWriteIndex++;
+    if (StreamBufferWriteIndex >= StreamBufferSize)
     {
-        FlashProgram(&data[i], addr, 1);
-        addr += 4;
+        StreamBufferWriteIndex = 0;
     }
 
-    FlashLock();
-
-    flash_record_count = count;
-    flash_has_record = (count > 0);
+    if (StreamBufferCount < StreamBufferSize)
+    {
+        StreamBufferCount++;
+    }
+    else
+    {
+        StreamBufferFull = true;
+    }
 }
 
-static uint32_t FlashLog_GetCount(void)
+static uint32_t StreamBuffer_GetCount(void)
 {
-    uint32_t magic = *(uint32_t *)FLASH_LOG_BASE;
-    if (magic != FLASH_LOG_MAGIC)
-    {
-        return 0;
-    }
-    return *(uint32_t *)(FLASH_LOG_BASE + 4);
+    return StreamBufferCount;
 }
 
-static bool FlashLog_ReadEntry(uint32_t index, uint32_t *out)
+static bool StreamBuffer_ReadEntry(uint32_t index, uint32_t *out)
 {
-    uint32_t count = FlashLog_GetCount();
+    uint32_t count = StreamBuffer_GetCount();
+    uint32_t start;
+
     if (!out || index >= count)
     {
         return false;
     }
 
-    *out = *(uint32_t *)(FLASH_LOG_BASE + 8 + index * 4);
+    if (StreamBufferFull)
+    {
+        start = StreamBufferWriteIndex;
+    }
+    else
+    {
+        start = 0;
+    }
+
+    *out = SensorBufferData[(start + index) % StreamBufferSize];
     return true;
 }
 
@@ -441,7 +401,7 @@ static bool FlashLog_ReadEntry(uint32_t index, uint32_t *out)
 //
 // SysTick Interrupt Handler: Handles system tick interrupts that occur
 // periodically (every 1 millisecond); it triggers ADC reads, stores sensor
-// data in the circular buffer, and optionally dumps the data to flash memory
+// data in the circular RAM buffer, and prepares real-time CAN frames.
 //
 //*****************************************************************************
 
@@ -468,6 +428,9 @@ void SysTickIntHandler(void)
     {
         uint16_t p1 = (uint16_t)(adcVals[0] & 0x0FFF);
         uint16_t p2 = (uint16_t)(adcVals[1] & 0x0FFF);
+        uint32_t packed_sample = ((uint32_t)p1 << 16) | (uint32_t)p2;
+
+        StreamBuffer_Add(packed_sample);
 
         // Decimate transmission to reduce CAN bus load and avoid adapter/driver overflow.
         // The module still samples at 1 kHz, but sends only once every STREAM_DECIMATE ticks.
@@ -888,7 +851,7 @@ void Init_CAN(uint32_t Baud)
 //*****************************************************************************
 //
 // Main Function: Main loop of the Inkley_PressureSensor program; it handles CAN
-// communication, processes sensor data, and manages flash memory for storing sensor
+// communication, processes sensor data, and manages RAM buffering for storing sensor
 // readings
 //
 //*****************************************************************************
@@ -933,9 +896,7 @@ int main(void)
     Init_Systick();
     Init_CAN(CAN_BAUD);
 
-    // Initialize flash logging state (reads existing stored record count)
-    flash_record_count = FlashLog_GetCount();
-    flash_has_record = (flash_record_count > 0);
+    StreamBuffer_Reset();
 
     //*************************************************************************
     // Global interrupt enable
@@ -947,7 +908,7 @@ int main(void)
     //*************************************************************************
     //
     // Main program loop: Processes incoming CAN messages, handles I2C commands,
-    // manages flash memory, and sends periodic heartbeat messages
+    // manages RAM buffering, and sends periodic heartbeat messages
     //
     //*************************************************************************
     while (1)
@@ -987,6 +948,9 @@ int main(void)
 
                 case icmdStreamRealtime:
                     StreamingMode = smRealTime;
+                    StreamBuffer_Reset();
+                    buffer_streaming_active = false;
+                    g_streamTick = 0;
                     // Reset any pending sample when starting real-time streaming.
                     g_hasPendingSample = false;
                     CAN_RESP[4] = (uint8_t)(StreamingMode >> 24);
@@ -998,20 +962,13 @@ int main(void)
 
                 case icmdStopStreaming:
                     StreamingMode = smStopped;
+                    buffer_streaming_active = false;
 
-                    // If we were capturing samples into RAM, persist them to flash.
-                    if (StreamBufferCount > 0)
-                    {
-                        FlashLog_Write(SensorBufferData, StreamBufferCount);
-                        // Mark that a flash record is available
-                        flash_has_record = (flash_record_count > 0);
-                    }
-
-// Acknowledge stop streaming (no local storage behavior)
-                CAN_RESP[4] = 0;
-                CAN_RESP[5] = 0;
-                CAN_RESP[6] = 0;
-                CAN_RESP[7] = 0;
+                    // Acknowledge stop streaming; buffered data remains in RAM.
+                    CAN_RESP[4] = 0;
+                    CAN_RESP[5] = 0;
+                    CAN_RESP[6] = 0;
+                    CAN_RESP[7] = 0;
 
                 // Reset pending sample state used for packed CAN streaming
                     g_hasPendingSample = false;
@@ -1020,18 +977,19 @@ int main(void)
                     break;
 
                 case icmdStreamBuffered:
-                    // Start streaming stored data from flash (if present)
-                    if (flash_has_record)
+                    // Start dumping stored data from the RAM ring buffer (if present)
+                    buffer_stream_count = StreamBuffer_GetCount();
+                    if (buffer_stream_count > 0)
                     {
-                        flash_streaming_active = true;
-                        flash_stream_index = 0;
-                        flash_stream_resp_id = CANID_tmp;  // send data back to the requester
+                        buffer_streaming_active = true;
+                        buffer_stream_index = 0;
+                        buffer_stream_resp_id = CANID_tmp;  // send data back to the requester
 
                         // Reply with confirmation and record size
-                        CAN_RESP[4] = (uint8_t)(flash_record_count >> 24);
-                        CAN_RESP[5] = (uint8_t)(flash_record_count >> 16);
-                        CAN_RESP[6] = (uint8_t)(flash_record_count >> 8);
-                        CAN_RESP[7] = (uint8_t)(flash_record_count);
+                        CAN_RESP[4] = (uint8_t)(buffer_stream_count >> 24);
+                        CAN_RESP[5] = (uint8_t)(buffer_stream_count >> 16);
+                        CAN_RESP[6] = (uint8_t)(buffer_stream_count >> 8);
+                        CAN_RESP[7] = (uint8_t)(buffer_stream_count);
                     }
                     else
                     {
@@ -1053,9 +1011,9 @@ int main(void)
                     break;
 
                 case icmdStreamBufferSet:    // Set Buffer size
-                    // StreamBufferSize = 8192
-                    if (CANVAL_tmp == 0 || CANVAL_tmp > 32768) CANVAL_tmp = 8192;
+                    if (CANVAL_tmp == 0 || CANVAL_tmp > SENSORBUFSIZE) CANVAL_tmp = SENSORBUFSIZE;
                     StreamBufferSize = CANVAL_tmp;
+                    StreamBuffer_Reset();
                     CAN_RESP[4] = (uint8_t)(StreamBufferSize >> 24);
                     CAN_RESP[5] = (uint8_t)(StreamBufferSize >> 16);
                     CAN_RESP[6] = (uint8_t)(StreamBufferSize >> 8);
@@ -1096,12 +1054,12 @@ int main(void)
             }
         }
 
-        // If a flash-streaming request is active, send stored samples one-by-one.
-        // This allows the host to request and receive stored data after recording.
-        if (flash_streaming_active)
+        // If a buffer-dump request is active, send stored RAM samples one-by-one.
+        // This allows the host to request and receive buffered data after recording.
+        if (buffer_streaming_active)
         {
             uint32_t entry;
-            if (FlashLog_ReadEntry(flash_stream_index, &entry))
+            if (StreamBuffer_ReadEntry(buffer_stream_index, &entry))
             {
                 // Send the sample pair as the response payload (in bytes 4..7)
                 CAN_RESP[0] = 0x08;  // Message length
@@ -1113,25 +1071,25 @@ int main(void)
                 CAN_RESP[6] = (uint8_t)(entry >> 8);
                 CAN_RESP[7] = (uint8_t)(entry);
 
-                CANSendMSG_Obj(flash_stream_resp_id, CAN_RESP, 32);
-                flash_stream_index++;
+                CANSendMSG_Obj(buffer_stream_resp_id, CAN_RESP, 32);
+                buffer_stream_index++;
 
-                if (flash_stream_index >= flash_record_count)
+                if (buffer_stream_index >= buffer_stream_count)
                 {
-                    // Finished streaming
-                    flash_streaming_active = false;
+                    // Finished streaming buffered samples.
+                    buffer_streaming_active = false;
                     // Notify completion using a response frame with count=0
                     CAN_RESP[4] = 0;
                     CAN_RESP[5] = 0;
                     CAN_RESP[6] = 0;
                     CAN_RESP[7] = 0;
-                    CANSendMSG_Obj(flash_stream_resp_id, CAN_RESP, 32);
+                    CANSendMSG_Obj(buffer_stream_resp_id, CAN_RESP, 32);
                 }
             }
             else
             {
                 // No data available; stop streaming.
-                flash_streaming_active = false;
+                buffer_streaming_active = false;
             }
         }
 
