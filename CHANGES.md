@@ -3,11 +3,21 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
-- Avoid blocking in SysTick ISR: CAN transmit frames are now deferred to the main loop.
-- Mark shared timing/streaming state as `volatile` for safe ISR/main access.
-- Added pending CAN TX buffer for real-time streaming.
-- Fixed streaming stopping unexpectedly after ~1000 samples by decimating CAN output and avoiding adapter buffer overflow.
-- Added `STREAM_DECIMATE` option to adjust CAN output rate (tune for different adapters).
-- Improved host-side logging by buffering CSV writes to prevent I/O stalls.
-- Implemented local storage logging: RAM buffering + flash persistence.
-- Added command to stream stored flash data back over CAN.
+
+- Replaced flash-backed sample logging with a RAM-first circular buffer dump workflow.
+- Added CAN command `0x05` packed buffer status reporting:
+  - streaming mode
+  - configured RAM buffer capacity
+  - current buffered sample count
+  - wrapped/full flag
+  - dump-active flag
+- Kept wire value `0x07` for buffered playback payloads, but renamed the active firmware concept to buffered sample data.
+- Added 16-bit sequence indexes to buffered playback frames in bytes `[1..2]`.
+- Validated RAM buffer behavior on 2026-05-26:
+  - empty buffer after power cycle returned `0`
+  - 256-sample wrap test returned `256` with sequence validation passing
+  - oversized `999999` buffer request capped at `4094`
+  - full `4094`-sample dump completed over CAN with sequence validation passing
+- Avoided flash writes in the active sampling path.
+- Real-time CAN transmit frames are deferred to the main loop rather than sent directly from SysTick.
+- `STREAM_DECIMATE` remains available to tune realtime bus load for different CAN adapters.

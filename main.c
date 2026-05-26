@@ -34,7 +34,7 @@
  *   - CANSendMSG_Obj() allows caller-selected TX mailbox usage.
  *
  * Revision / Build:
- *   BuildVersion: 1003
+ *   BuildVersion: 1004
  ******************************************************************************/
 
 //*****************************************************************************
@@ -105,7 +105,7 @@ static void vmemcpy(volatile uint8_t *dst, const uint8_t *src, uint32_t n)
 //
 //*****************************************************************************
 
-uint32_t BuildVersion = 1003;       // Firmware version for this build
+uint32_t BuildVersion = 1004;       // Firmware version for this build
 
 // Time Out
 uint32_t TimeOutCounter = 0;
@@ -127,9 +127,10 @@ uint8_t CAN_BUF[8];
 #define icmdStreamRealtime      0x02  // Start real-time streaming with RAM buffering
 #define icmdStreamBuffered      0x03  // Dump buffered samples from RAM
 #define icmdStopStreaming       0x04  // Stop all streaming modes
-#define icmdStreamingStatus     0x05  // Query current streaming mode / status
+#define icmdStreamingStatus     0x05  // Query streaming and RAM buffer status
 #define icmdStreamBufferSet     0x06  // Set stream buffer size (bytes/samples) for buffered mode
-#define icmdReadFlashData       0x07  // Historical payload tag for buffered sample frames
+#define icmdBufferedSampleData  0x07  // Buffered sample payload frame tag
+#define icmdReadFlashData       icmdBufferedSampleData  // Historical alias
 
 //*****************************************************************************
 //
@@ -372,6 +373,31 @@ static void StreamBuffer_Add(uint32_t packed_sample)
 static uint32_t StreamBuffer_GetCount(void)
 {
     return StreamBufferCount;
+}
+
+static uint32_t StreamBuffer_GetStatusWord(void)
+{
+    uint32_t count = StreamBuffer_GetCount();
+    uint32_t capacity = StreamBufferSize;
+    uint32_t status = 0;
+
+    if (count > 0x0FFF)
+    {
+        count = 0x0FFF;
+    }
+
+    if (capacity > 0x0FFF)
+    {
+        capacity = 0x0FFF;
+    }
+
+    status |= (StreamingMode & 0x0F) << 28;
+    status |= (StreamBufferFull ? 1UL : 0UL) << 27;
+    status |= (buffer_streaming_active ? 1UL : 0UL) << 26;
+    status |= (capacity & 0x0FFF) << 12;
+    status |= (count & 0x0FFF);
+
+    return status;
 }
 
 static bool StreamBuffer_ReadEntry(uint32_t index, uint32_t *out)
@@ -1003,10 +1029,11 @@ int main(void)
                     break;
 
                 case icmdStreamingStatus:
-                    CAN_RESP[4] = (uint8_t)(StreamingMode >> 24);
-                    CAN_RESP[5] = (uint8_t)(StreamingMode >> 16);
-                    CAN_RESP[6] = (uint8_t)(StreamingMode >> 8);
-                    CAN_RESP[7] = (uint8_t)(StreamingMode);
+                    CANVAL_tmp = StreamBuffer_GetStatusWord();
+                    CAN_RESP[4] = (uint8_t)(CANVAL_tmp >> 24);
+                    CAN_RESP[5] = (uint8_t)(CANVAL_tmp >> 16);
+                    CAN_RESP[6] = (uint8_t)(CANVAL_tmp >> 8);
+                    CAN_RESP[7] = (uint8_t)(CANVAL_tmp);
                     CANSendMSG_Obj(CANID_tmp, CAN_RESP, 32);
                     break;
 
@@ -1061,11 +1088,13 @@ int main(void)
             uint32_t entry;
             if (StreamBuffer_ReadEntry(buffer_stream_index, &entry))
             {
-                // Send the sample pair as the response payload (in bytes 4..7)
+                // Send the sample pair as the response payload (in bytes 4..7).
+                // Bytes 1..2 carry a 16-bit sequence index so the host can
+                // detect dropped or reordered buffered playback frames.
                 CAN_RESP[0] = 0x08;  // Message length
-                CAN_RESP[1] = (CAN_ID >> 8) & 0xFF;
-                CAN_RESP[2] = CAN_ID & 0xFF;
-                CAN_RESP[3] = icmdReadFlashData;
+                CAN_RESP[1] = (uint8_t)(buffer_stream_index >> 8);
+                CAN_RESP[2] = (uint8_t)(buffer_stream_index);
+                CAN_RESP[3] = icmdBufferedSampleData;
                 CAN_RESP[4] = (uint8_t)(entry >> 24);
                 CAN_RESP[5] = (uint8_t)(entry >> 16);
                 CAN_RESP[6] = (uint8_t)(entry >> 8);

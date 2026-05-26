@@ -64,9 +64,20 @@ Implemented commands:
 - `0x02` - start real-time streaming and RAM buffering.
 - `0x03` - dump buffered RAM samples.
 - `0x04` - stop streaming.
-- `0x05` - read streaming/status value.
+- `0x05` - read packed streaming/RAM buffer status.
 - `0x06` - set RAM stream buffer size.
-- `0x07` - historical frame tag used for buffered playback payloads.
+- `0x07` - buffered sample playback payload.
+
+Status response `0x05` packs mode, flags, capacity, and count into bytes
+`[4..7]`:
+
+```text
+bits 31..28  streaming mode (0=stopped, 1=realtime, 2=buffered)
+bit  27      RAM buffer has wrapped/full flag
+bit  26      buffer dump active flag
+bits 23..12  configured RAM buffer capacity
+bits 11..0   current buffered sample count
+```
 
 ## Realtime Streaming
 
@@ -84,8 +95,10 @@ sample pair is added while streaming remains active. Stopping streaming leaves
 the buffered records in RAM so the host can request them with command `0x03`.
 
 The firmware replies first with the buffered record count, then sends each
-sample pair as a `0x07` playback frame. RAM contents are expected to be lost
-after power cycle.
+sample pair as a `0x07` playback frame. Bytes `[1..2]` of each `0x07` frame
+carry a 16-bit sequence index so the host can detect dropped or reordered
+buffered playback frames. RAM contents are expected to be lost after power
+cycle.
 
 Current validation results:
 
@@ -106,6 +119,7 @@ Inside the CLI:
 
 ```text
 version
+buffer_status
 set_buffer_size 999999
 set_filename realtime_maxcap.csv
 start
@@ -115,6 +129,7 @@ Wait about 5 seconds, then:
 
 ```text
 stop
+buffer_status
 set_filename buffer_maxcap.csv
 dump_buffer
 ```
@@ -127,5 +142,6 @@ Expected result: `Buffered record count: 4094` and a saved CSV containing
 - Keep high-rate CAN transmit work out of interrupt handlers when possible.
 - The sampling path should remain constant time and should not write flash.
 - Buffer dumps should be run after stopping real-time streaming.
-- Add a monotonically increasing sample counter in a future frame format if
-  dropped or reordered buffered frames need to be detected rigorously.
+- Buffered playback frames include a 16-bit sequence index for host-side
+  dropped/reordered frame checks. If dumps grow beyond 65535 records later,
+  extend this to a wider counter or multi-frame payload format.
