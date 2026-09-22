@@ -107,6 +107,46 @@ Current validation results:
 - An oversized buffer request, such as `999999`, is capped at `4094` records.
 - A full `4094`-sample RAM dump completes successfully over CAN.
 
+## Local Storage Guidance
+
+RAM buffering is the right first-stage architecture for deterministic sampling
+and CAN retrieval validation. For longer-duration local logging, this TM4C
+part's internal RAM is capacity-limited to seconds, so the next hardware step
+should be external FRAM or flash. FRAM is preferred for high-endurance
+time-series logging.
+
+Current RAM storage math:
+
+- Buffered sample format: one `Pressure1`/`Pressure2` pair per `uint32_t`.
+- Storage rate at 1000 Hz: `4 bytes/sample * 1000 samples/s = 4 KB/s`.
+- Current tested capacity: `4094 samples`.
+- Current tested duration: `4094 / 1000 Hz = 4.094 seconds`.
+
+Longer-duration storage estimates at the current 4-byte sample-pair format:
+
+```text
+30 sec  -> 120 KB
+60 sec  -> 240 KB
+5 min   -> 1.2 MB
+10 min  -> 2.4 MB
+```
+
+Storage recommendations:
+
+- Keep RAM as the primary recent-sample ring buffer. It is useful for
+  debugging, smoke tests, short bursts, and validating CAN dump behavior.
+- Avoid internal flash for normal high-rate sample logging. Flash has
+  erase-block constraints, slower writes, and endurance limits, and it can
+  disturb sampling timing if handled poorly.
+- Use MCU EEPROM only for configuration/calibration records. It is appropriate
+  for settings, calibration constants, and device ID, but it is too small for
+  sampled data.
+- For longer local storage, add external SPI FRAM. FRAM avoids
+  erase-before-write complexity, has high endurance, supports simple circular
+  log semantics, and is more predictable for repeated sampling.
+- Use external SPI flash only when storage capacity matters more than endurance
+  and erase-block management complexity.
+
 ## Host Test Sequence
 
 Run the Python CLI from the MasterPython repo:
