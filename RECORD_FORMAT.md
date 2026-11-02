@@ -1,4 +1,4 @@
-﻿# Recording binary format v1
+# Recording binary format v1
 
 2026-11-02. Design contract and offline reference codec; not implemented in MCU
 or host transport. Do not write real recordings until recovery/state-machine
@@ -110,9 +110,12 @@ manifest EVENT_DETAIL_LOST; never silently promise every event detail survived.
 | 116 | 8 | Other ADC failed attempts |
 | 124 | 4 | Manifest schema = 1 |
 
-Device ID encoding: three MCU unique-ID uint32 words in increasing register
-address order, each little-endian, followed by four zeros. Confirm the hardware
-ID source during implementation; never substitute DID0/DID1 part/revision IDs.
+Device ID is zero in the stage-one implementation, explicitly UNKNOWN. A
+factory unique-ID register source was not established for this part/toolchain;
+the earlier assumed three-word ID source is withdrawn. Do not use DID0/DID1
+as unique module identity. Provisioning a stable module ID remains required
+before multi-module deployment. Nonzero DeviceId serialization must be defined
+and capability-versioned before deployment.
 Manifest header uses first valid slot/time; its sequence equals total DATA plus
 EVENTS blocks. At least one valid pair required in v1. Check attempts = valid
 pairs + timeouts + other ADC failures at finalization; invalid equality is an

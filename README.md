@@ -207,3 +207,5 @@ See [flash timing, endurance and errata review](FLASH_REVIEW.md) for device limi
 See [recording lifecycle](RECORDING_STATES.md) for capture, stop, persist, transfer, acknowledgement, clear and restart behavior.
 
 See [binary recording format v1](RECORD_FORMAT.md) and the offline reference codec/tests in tools/log_format.py and tools/test_log_format.py.
+
+See [stopped-acquisition flash implementation and bench procedure](STOPPED_FLASH_TEST.md) for build 1006 and new capability-gated commands. Hardware validation pending.
