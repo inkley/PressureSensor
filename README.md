@@ -192,3 +192,18 @@ Expected result: `Buffered record count: 4094` and a saved CSV containing
 - Buffered playback frames include a 16-bit sequence index for host-side
   dropped/reordered frame checks. If dumps grow beyond 65535 records later,
   extend this to a wider counter or multi-frame payload format.
+
+See [acquisition accounting definitions](ACQUISITION_ACCOUNTING.md) for proposed
+session identity, counters, gap reporting, and implementation acceptance tests.
+
+See [acquisition timing requirements](ACQUISITION_TIMING.md) for sequential channel timing, provisional jitter limits, and gap policy.
+
+See [provisional flash capacity](FLASH_CAPACITY.md) for linker-map evidence, metadata/recovery allowances, and record-size comparisons.
+
+See [logging partition verification](FLASH_PARTITION.md) for aligned boundaries, bootloader status, and storage implementation constraints.
+
+See [flash timing, endurance and errata review](FLASH_REVIEW.md) for device limits and implementation gates.
+
+See [recording lifecycle](RECORDING_STATES.md) for capture, stop, persist, transfer, acknowledgement, clear and restart behavior.
+
+See [binary recording format v1](RECORD_FORMAT.md) and the offline reference codec/tests in tools/log_format.py and tools/test_log_format.py.

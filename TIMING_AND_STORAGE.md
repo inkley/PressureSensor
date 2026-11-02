@@ -21,12 +21,15 @@ and P2 from successive conversion steps on PE3/AIN0 and PE2/AIN1. The channels
 share a trigger but are not sampled at exactly the same instant. Each channel
 already measures differential pressure across its own pair of ports.
 
-`GlobalTimer` is intended as an elapsed-time counter and is used for heartbeat
-scheduling. Its increment is currently at the end of the ISR: ADC timeout and
-streaming early returns skip it. With the current transmission decimation,
-normal streaming also skips increments. Fix and validate this before treating
-it as milliseconds. A 32-bit counter incrementing at 1 kHz wraps after about
-49.7 days; define wrap-safe arithmetic and session/reboot identification.
+`GlobalTimer` now increments at SysTick entry, including early returns, and
+heartbeat deadlines use wrap-safe arithmetic. Build 1005 passed basic eval-board
+rollover and streaming-timer checks; see [timer validation](TIMER_VALIDATION.md).
+It counts serviced ticks, not independently measured elapsed time or successful
+acquisitions. It still wraps after about 49.7 days at nominal 1 kHz.
+
+See [acquisition accounting definitions](ACQUISITION_ACCOUNTING.md) for the
+proposed session IDs, counters, timestamp semantics, and explicit gap reporting.
+Those definitions are not yet implemented in the firmware or host protocol.
 
 There are currently no per-sample MCU timestamps in RAM records or sample CAN
 frames. Dump sequence indices restart at zero for each dump. Python timestamps
