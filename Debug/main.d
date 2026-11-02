@@ -27,7 +27,6 @@ main.obj: ../driverlib/sysctl.h
 main.obj: ../driverlib/uart.h
 main.obj: ../driverlib/i2c.h
 main.obj: ../driverlib/systick.h
-main.obj: ../driverlib/flash.h
 main.obj: ../utils/uartstdio.h
 main.obj: C:/ti/ccs1281/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stdarg.h
 
@@ -84,8 +83,6 @@ C:/ti/ccs1281/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/xlocale/_string.h
 ../driverlib/i2c.h:
 
 ../driverlib/systick.h:
-
-../driverlib/flash.h:
 
 ../utils/uartstdio.h:
 

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Default Linker Command file for the Texas Instruments TM4C123GE6PM
+ * Default Linker Command file for the Texas Instruments TM4C123GH6PM
  *
  * This is derived from revision 15071 of the TivaWare Library.
  *
@@ -10,7 +10,7 @@
 
 MEMORY
 {
-    FLASH (RX) : origin = 0x00000000, length = 0x00020000
+    FLASH_APP (RX) : origin = 0x00000000, length = 0x00020000
     SRAM (RWX) : origin = 0x20000000, length = 0x00008000
 }
 
@@ -29,17 +29,24 @@ MEMORY
 SECTIONS
 {
     .intvecs:   > 0x00000000
-    .text   :   > FLASH
-    .const  :   > FLASH
-    .cinit  :   > FLASH
-    .pinit  :   > FLASH
-    .init_array : > FLASH
+    .text   :   > FLASH_APP
+    .const  :   > FLASH_APP
+    .cinit  :   > FLASH_APP
+    .pinit  :   > FLASH_APP
+    .init_array : > FLASH_APP
 
     .vtable :   > 0x20000000
     .data   :   > SRAM
     .bss    :   > SRAM
     .sysmem :   > SRAM
-    .stack  :   > SRAM
+    .stack  :   > SRAM, RUN_END(__STACK_TOP)
 }
 
-__STACK_TOP = __stack + 512;
+// __STACK_TOP is the end of the actual .stack allocation above.
+
+// Upper 128 KiB reserved for future logging; deliberately absent from MEMORY
+// so no executable, constant, or orphan section can be allocated there.
+// End address is exclusive. No logging contents are emitted by this image.
+__flash_log_start__ = 0x00020000;
+__flash_log_end__ = 0x00040000;
+__flash_log_size__ = __flash_log_end__ - __flash_log_start__;

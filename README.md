@@ -7,9 +7,16 @@ The current firmware streams two pressure channels over CAN and stores recent
 samples in a circular RAM buffer that can be dumped to a host PC after
 streaming stops.
 
+See [Timing and storage development notes](TIMING_AND_STORAGE.md) for the
+verified timing architecture, RTC/PCB recommendations, and staged flash-logging
+plan, including the current versus proposed MCU memory sizes.
+
 ## Hardware And Toolchain
 
-- Target MCU family: TI Tiva C / TM4C123G
+- Hardware MCU: TI Tiva C / TM4C123GH6PM (bench and planned PCB, user-confirmed;
+  256 KiB flash, 32 KiB SRAM).
+- Debug/Release builds target GH6PM, with 128 KiB application flash and 128 KiB
+  reserved for future logging. See [build validation](GH6PM_BUILD_VALIDATION.md).
 - IDE: Code Composer Studio
 - CAN bitrate: 1 Mbps
 - Host CLI: <https://github.com/inkley/MasterPython>
@@ -17,8 +24,8 @@ streaming stops.
 ## Repository Contents
 
 - `main.c` - application entry point and firmware logic.
-- `tm4c123ge6pm_startup_ccs.c` - CCS startup file.
-- `tm4c123ge6pm.cmd` - linker command file.
+- `tm4c123gh6pm_startup_ccs.c` - CCS startup file.
+- `tm4c123gh6pm.cmd` - linker command file and reserved log boundaries.
 - `driverlib/`, `sensorlib/`, `usblib/`, `utils/`, `inc/` - TivaWare support code.
 - `targetConfigs/` - CCS target configuration files.
 - `Debug/` - generated build output and intermediate files.

@@ -3,17 +3,17 @@
 <projectOptions>
 	<ccsVariant value="0:Eclipse-based"/>
 	<ccsVersion value="12.6.0"/>
-	<deviceVariant value="Cortex M.TM4C123GE6PM"/>
+	<deviceVariant value="Cortex M.TM4C123GH6PM"/>
 	<deviceFamily value="TMS470"/>
 	<deviceEndianness value="little"/>
 	<codegenToolVersion value="20.2.7.LTS"/>
 	<isElfFormat value="true"/>
-	<connection value="common/targetdb/connections/TIXDS2XXUSB_onboard_Connection.xml"/>
-	<linkerCommandFile value="tm4c123ge6pm.cmd"/>
+	<connection value="common/targetdb/connections/Stellaris_ICDI_Connection.xml"/>
+	<linkerCommandFile value="tm4c123gh6pm.cmd"/>
 	<rts value="libc.a"/>
 	<createSlaveProjects value=""/>
 	<templateProperties value="id=com.ti.common.project.core.emptyProjectWithMainTemplate"/>
 	<filesToOpen value="main.c"/>
-	<isTargetManual value="false"/>
+	<isTargetManual value="true"/>
 	<origin value="C:/Users/Lab-User/workspace_v12/Inkley_TI_MCU_FW"/>
 </projectOptions>

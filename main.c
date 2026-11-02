@@ -3,7 +3,7 @@
  * Project:     Inkley_PressureSensor (TM4C / Tiva C)
  * Author:      Tyler Inkley
  *
- * Description:
+ * Description: 
  *   Firmware for a two-channel differential pressure sensor evaluation module.
  *   Samples two ADC channels at a fixed rate (nominal 1000 Hz) and supports:
  *     - Real-time streaming of packed Pressure1/Pressure2 ADC counts over CAN
@@ -1083,7 +1083,7 @@ int main(void)
 
         // If a buffer-dump request is active, send stored RAM samples one-by-one.
         // This allows the host to request and receive buffered data after recording.
-        if (buffer_streaming_active)
+          if (buffer_streaming_active)
         {
             uint32_t entry;
             if (StreamBuffer_ReadEntry(buffer_stream_index, &entry))
