@@ -34,7 +34,7 @@
  *   - CANSendMSG_Obj() allows caller-selected TX mailbox usage.
  *
  * Revision / Build:
- *   BuildVersion: 1004
+ *   BuildVersion: 1005
  ******************************************************************************/
 
 //*****************************************************************************
@@ -105,7 +105,7 @@ static void vmemcpy(volatile uint8_t *dst, const uint8_t *src, uint32_t n)
 //
 //*****************************************************************************
 
-uint32_t BuildVersion = 1004;       // Firmware version for this build
+uint32_t BuildVersion = 1005;       // Firmware version for this build
 
 // Time Out
 uint32_t TimeOutCounter = 0;
@@ -147,9 +147,9 @@ uint8_t CAN_BUF[8];
 #define SYSTICK_TIMING   1000      // SysTick timer set to 1 millisecond intervals
 #define ADC_ReadTimeOut  100        // Timeout for ADC reads
 
-volatile uint32_t GlobalTimer = 0;          // Global timer for various time-based operations (incremented in SysTick ISR)
+volatile uint32_t GlobalTimer = 0;          // Serviced SysTick count; wraps modulo 2^32 (~49.7 days at 1 kHz)
 #define HeartBeatTime 10000        // Heart beat signal interval (10 seconds)
-volatile uint32_t HeatbeatTrigger = 0;      // Timer to track heart beat signals
+volatile uint32_t HeartbeatTrigger = HeartBeatTime; // Next heartbeat deadline, modulo 2^32
 
 //*****************************************************************************
 //
@@ -435,6 +435,10 @@ void SysTickIntHandler(void)
 {
     uint32_t adcVals[2];
 
+    // Count every serviced tick, including ADC timeout and packed-frame early returns.
+    // This is not a count of successful acquisitions or missed hardware ticks.
+    GlobalTimer++;
+
     ADCProcessorTrigger(ADC0_BASE, 2);
     TimeOutCounter = 0;
 
@@ -505,7 +509,6 @@ void SysTickIntHandler(void)
         g_pendingP2 = p2;
     }
 
-    GlobalTimer++;
 }
 
 //*****************************************************************************
@@ -908,7 +911,7 @@ int main(void)
     //*************************************************************************
     // System clock configuration
     // Sets the MCU clock used by SysTick timing, ADC timing, CAN bit timing, etc.
-    // This config targets ~40 MHz system clock using the PLL and 16 MHz crystal.
+    // Nominal 20 MHz system clock: 200 MHz PLL path / 10, using the 16 MHz crystal.
     //*************************************************************************
     SysCtlClockSet(SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
 
@@ -1049,7 +1052,7 @@ int main(void)
                     break;
             }
             // Reset the new message flag and set the heartbeat timer
-            HeatbeatTrigger = GlobalTimer + HeartBeatTime;
+            HeartbeatTrigger = GlobalTimer + HeartBeatTime;
         }
 
         // Check for CAN overrun condition (if new data arrived before the previous was processed)
@@ -1062,22 +1065,25 @@ int main(void)
         // Check if it's time to send a heartbeat message (every 10 seconds)
         if (StreamingMode == smStopped)
         {
-            if (GlobalTimer > HeatbeatTrigger)
+            uint32_t now = GlobalTimer;
+            // Modular deadline comparison: valid for deadlines within half the
+            // uint32_t range, with the main loop checking at least that often.
+            if ((uint32_t)(now - HeartbeatTrigger) < 0x80000000UL)
             {
                 // Prepare and send a heartbeat message with the global timer value
                 CAN_RESP[0] = 0x08;  // Message length
                 CAN_RESP[1] = (CAN_ID >> 8) & 0xFF;
                 CAN_RESP[2] = CAN_ID & 0xFF;
                 CAN_RESP[3] = 0x7F;  // Heartbeat command
-                CAN_RESP[4] = (uint8_t)(GlobalTimer >> 24);
-                CAN_RESP[5] = (uint8_t)(GlobalTimer >> 16);
-                CAN_RESP[6] = (uint8_t)(GlobalTimer >> 8);
-                CAN_RESP[7] = (uint8_t)(GlobalTimer);
+                CAN_RESP[4] = (uint8_t)(now >> 24);
+                CAN_RESP[5] = (uint8_t)(now >> 16);
+                CAN_RESP[6] = (uint8_t)(now >> 8);
+                CAN_RESP[7] = (uint8_t)(now);
 
                 CANSendMSG(CAN_BC_ID, CAN_RESP);    // Send heartbeat message to broadcast address
 
-                // Reset the heartbeat timer
-                HeatbeatTrigger = GlobalTimer + HeartBeatTime;
+                // Schedule from the same snapshot used in the heartbeat payload.
+                HeartbeatTrigger = now + HeartBeatTime;
             }
         }
 
