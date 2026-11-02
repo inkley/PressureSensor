@@ -1,0 +1,23 @@
+﻿{
+    "version":  4,
+    "configurations":  [
+                           {
+                               "name":  "TI TM4C123GH6PM",
+                               "includePath":  [
+                                                   "${workspaceFolder}",
+                                                   "C:/ti/ccs1281/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include"
+                                               ],
+                               "cStandard":  "c99",
+                               "cppStandard":  "c++14",
+                               "compilerPath":  "",
+                               "intelliSenseMode":  "windows-clang-arm",
+                               "defines":  [
+                                               "PART_TM4C123GH6PM",
+                                               "ccs=\"ccs\"",
+                                               "__ARM_ARCH=7",
+                                               "__TI_ARM__=1",
+                                               "__TI_EABI__=1"
+                                           ]
+                           }
+                       ]
+}
