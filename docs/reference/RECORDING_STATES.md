@@ -1,4 +1,8 @@
-﻿# Recording lifecycle and command contract
+> Detailed specification/evaluation; distinguish proposed policy from implemented
+> behavior. For current validation and remaining work, see [current status](../CURRENT_STATUS.md).
+> Commands and source paths assume the repository root as working directory.
+
+# Recording lifecycle and command contract
 
 2026-11-02. Defined behavior for implementation; current firmware/CLI do not yet
 implement this state machine. No new command IDs or binary messages assigned.

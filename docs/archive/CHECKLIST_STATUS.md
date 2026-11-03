@@ -1,4 +1,9 @@
-﻿# Checklist disposition: tested checkpoint 2026-11-02
+> Historical checkpoint/reference, preserved for evidence. Statements about what was
+> current or pending apply to the dated sections, not the latest firmware.
+> Commands/source paths assume repository-root working directories. See
+> [current status](../CURRENT_STATUS.md) and the [acceptance procedure](../ACCEPTANCE_PROCEDURE.md).
+
+# Checklist disposition: tested checkpoint 2026-11-02
 
 Evidence: STOPPED_FLASH_TEST.md, FLASH_RECOVERY_TEST.md; firmware .238/.239,
 1000-pair eval recording compared exactly to RAM and retained across reboot and

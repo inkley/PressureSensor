@@ -1,4 +1,8 @@
-﻿# Flash timing, endurance and silicon review
+> Detailed specification/evaluation; distinguish proposed policy from implemented
+> behavior. For current validation and remaining work, see [current status](../CURRENT_STATUS.md).
+> Commands and source paths assume the repository root as working directory.
+
+# Flash timing, endurance and silicon review
 
 2026-11-02. Review for TM4C123GH6PM. Eval U1 revision 7 verified by DID0;
 PCB U2 revision still unknown. No flash operations performed in this review.

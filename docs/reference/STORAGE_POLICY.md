@@ -1,7 +1,11 @@
-﻿# Full-storage, overwrite and wear-management policy
+> Detailed specification/evaluation; distinguish proposed policy from implemented
+> behavior. For current validation and remaining work, see [current status](../CURRENT_STATUS.md).
+> Commands and source paths assume the repository root as working directory.
 
-2026-11-02. Policy definition for the underwater pressure logger. Current firmware
-.240 remains the bounded single-record bench implementation. No firmware behavior,
+# Full-storage, overwrite and wear-management policy
+
+2026-11-02. Policy definition for the underwater pressure logger. The .240 baseline introduced the bounded single-record implementation; .241
+adds instrumentation without changing this policy scope. No firmware behavior,
 flash addresses or on-device wear limits are changed by this document.
 
 ## Defaults and full-storage behavior

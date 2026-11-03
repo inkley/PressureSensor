@@ -1,4 +1,8 @@
-﻿# Logging partition reservation verification
+> Detailed specification/evaluation; distinguish proposed policy from implemented
+> behavior. For current validation and remaining work, see [current status](../CURRENT_STATUS.md).
+> Commands and source paths assume the repository root as working directory.
+
+# Logging partition reservation verification
 
 2026-11-02. Reservation already implemented in tm4c123gh6pm.cmd; no firmware
 behavior or linker addresses changed in this verification step.

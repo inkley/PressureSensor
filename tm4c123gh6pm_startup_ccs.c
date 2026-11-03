@@ -245,8 +245,28 @@ ResetISR(void)
     // Jump to the CCS C initialization routine.  This will enable the
     // floating-point unit as well, so that does not need to be done here.
     //
-    __asm("    .global _c_int00\n"
-          "    b.w     _c_int00");
+    /* Paint only unused MSP space below the actual SP-64. No C runtime state
+     * or flash writes; save/restore PRIMASK. Top64 bytes remain conservative
+     * unknown/touched area. The pattern is a watermark estimate, not a proof. */
+    __asm("    .global __STACK_BOTTOM\n"
+          "    mrs r3, primask\n"
+          "    cpsid i\n"
+          "    mrs r1, msp\n"
+          "    sub r1, r1, #64\n"
+          "    ldr r0, stack_bottom_literal\n"
+          "    movw r2, #0xA5A5\n"
+          "    movt r2, #0xA5A5\n"
+          "stack_paint_loop:\n"
+          "    cmp r0, r1\n"
+          "    bhs stack_paint_done\n"
+          "    str r2, [r0], #4\n"
+          "    b stack_paint_loop\n"
+          "stack_paint_done:\n"
+          "    msr primask, r3\n"
+          "    .global _c_int00\n"
+          "    b.w _c_int00\n"
+          "    .align 4\n"
+          "stack_bottom_literal: .word __STACK_BOTTOM");
 }
 
 //*****************************************************************************

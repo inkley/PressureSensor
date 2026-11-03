@@ -34,7 +34,7 @@
  *   - CANSendMSG_Obj() allows caller-selected TX mailbox usage.
  *
  * Revision / Build:
- *   BuildVersion: 1009
+ *   BuildVersion: 1011
  ******************************************************************************/
 
 //*****************************************************************************
@@ -105,7 +105,7 @@ static void vmemcpy(volatile uint8_t *dst, const uint8_t *src, uint32_t n)
 //
 //*****************************************************************************
 
-uint32_t BuildVersion = 1009;       // Firmware version for this build
+uint32_t BuildVersion = 1011;       // Firmware version for this build
 
 // Time Out
 uint32_t TimeOutCounter = 0;
@@ -199,11 +199,21 @@ uint8_t g_can_tx_msg[8];
 //
 //*****************************************************************************
 
-uint32_t SensorBufferData[SENSORBUFSIZE]; // Array to hold sensor data
+typedef struct { uint64_t ticks; uint32_t attempt; uint16_t p1,p2; } MeasuredPair;
+typedef struct { uint64_t sequence,attempt,previous,current,missing,sample; uint32_t reasons,validity,detail,reserved; } MeasuredEvent;
+typedef char MeasuredPairSize[(sizeof(MeasuredPair)==16)?1:-1];
+typedef char MeasuredEventSize[(sizeof(MeasuredEvent)==64)?1:-1];
+static union { uint64_t alignment; uint32_t raw[4096]; MeasuredPair measured[1024]; } capture_arena;
+#define SensorBufferData capture_arena.raw
 static volatile bool acquisition_enabled = false;
 #include "timing_diag.h"
+static uint32_t M2Verify(void),M2Persist(void),M2Recovery(void),M2Lifecycle(uint32_t,uint32_t);
+static bool M2JournalValid(const uint8_t *);
+static uint32_t M2JournalWrite(uint32_t,uint32_t,uint32_t),M2FinishClear(const uint8_t *);
+static volatile bool m2_active=false;
 #include "flash_log.h"
 #include "flash_lifecycle.h"
+#include "measured_capture.h"
 //circ_bbuf_t SensorBuf;                    // Circular buffer structure instance
 
 //*****************************************************************************
@@ -381,9 +391,11 @@ static uint32_t StreamBuffer_GetCount(void)
 
 static uint32_t StreamBuffer_GetStatusWord(void)
 {
+    bool was_disabled=IntMasterDisable();
     uint32_t count = StreamBuffer_GetCount();
-    uint32_t capacity = StreamBufferSize;
+    uint32_t capacity = m2_active?1024:StreamBufferSize;
     uint32_t status = 0;
+    uint32_t mode=(m2_active && acquisition_enabled && log_state==LOG_CAPTURING)?3:StreamingMode;
 
     if (count > 0x0FFF)
     {
@@ -395,12 +407,13 @@ static uint32_t StreamBuffer_GetStatusWord(void)
         capacity = 0x0FFF;
     }
 
-    status |= (StreamingMode & 0x0F) << 28;
-    status |= (StreamBufferFull ? 1UL : 0UL) << 27;
+    status |= (mode & 0x0F) << 28;
+    status |= ((StreamBufferFull || (m2_active && count>=capacity)) ? 1UL : 0UL) << 27;
     status |= (buffer_streaming_active ? 1UL : 0UL) << 26;
     status |= (capacity & 0x0FFF) << 12;
     status |= (count & 0x0FFF);
 
+    if(!was_disabled) IntMasterEnable();
     return status;
 }
 
@@ -437,8 +450,8 @@ static bool StreamBuffer_ReadEntry(uint32_t index, uint32_t *out)
 
 void SysTickIntHandler(void)
 {
-    uint32_t adcVals[2];
-    uint64_t acquisition_began;
+    uint32_t adcVals[4];
+    uint64_t acquisition_began, trigger_proxy=0;
 
     // Count every serviced tick, including ADC timeout and packed-frame early returns.
     // This is not a count of successful acquisitions or missed hardware ticks.
@@ -448,6 +461,8 @@ void SysTickIntHandler(void)
     if (!acquisition_enabled) return;
     if (log_state == LOG_CAPTURING) log_attempts++;
     acquisition_began=TimingAttempt();
+    if(m2_active && log_state==LOG_CAPTURING) m2_attempts++;
+    trigger_proxy=TimingNow();
     ADCProcessorTrigger(ADC0_BASE, 2);
     TimeOutCounter = 0;
 
@@ -457,6 +472,7 @@ void SysTickIntHandler(void)
         {
             ADCIntClear(ADC0_BASE, 2);
             TimingResult(acquisition_began,1);
+            if(m2_active && log_state==LOG_CAPTURING) { M2Record(trigger_proxy,0,0,1); return; }
             if (log_state == LOG_CAPTURING) { log_timeouts++; acquisition_enabled=false; log_state=LOG_FAULT; }
             return;
         }
@@ -467,11 +483,13 @@ void SysTickIntHandler(void)
         ADCSequenceOverflow(ADC0_BASE, 2) || ADCSequenceUnderflow(ADC0_BASE, 2))
     {
         TimingResult(acquisition_began,2);
+        if(m2_active && log_state==LOG_CAPTURING) { M2Record(trigger_proxy,0,0,2); return; }
         acquisition_enabled=false;
         if(log_state==LOG_CAPTURING) log_state=LOG_FAULT;
         return; // never store an incomplete pair
     } // [0]=CH0(PE3), [1]=CH1(PE2)
     TimingResult(acquisition_began,0);
+    if(m2_active && log_state==LOG_CAPTURING) { M2Record(trigger_proxy,adcVals[0],adcVals[1],0); M2BenchDelay(); return; }
 
     if (log_state == LOG_CAPTURING)
     {
@@ -1003,10 +1021,24 @@ int main(void)
 
             // Process the CAN command request
             CAN_CMD_REQUEST = CAN_RECV.MSG[0];
-            if (CAN_CMD_REQUEST>=0x0F && CAN_CMD_REQUEST<=0x2F)
+            if (CAN_CMD_REQUEST>=0x0F && CAN_CMD_REQUEST<=0x3F)
             {
                 uint32_t result=0, k;
-                if(CAN_CMD_REQUEST==0x0F) result=0x49500104UL;
+                if(CAN_CMD_REQUEST>=0x30 && CAN_CMD_REQUEST<=0x3E) {
+                    if(CAN_CMD_REQUEST==0x37) {
+                        result=M2BuildBlock(CANVAL_tmp);
+                        if(!result) {
+                            CAN_RESP[6]=1; CANSendMSG_Obj(CANID_tmp,CAN_RESP,32);
+                            for(k=0;k<256;k++) {
+                                CAN_RESP[1]=(uint8_t)(k>>8); CAN_RESP[2]=(uint8_t)k; CAN_RESP[3]=0x3B;
+                                memcpy(CAN_RESP+4,((uint8_t *)log_image)+k*4,4);
+                                if(CANSendMSG_Obj(CANID_tmp,CAN_RESP,32)) break;
+                            }
+                            continue;
+                        }
+                    } else result=M2Command(CAN_CMD_REQUEST,CANVAL_tmp);
+                }
+                else if(CAN_CMD_REQUEST==0x0F) result=0x49500104UL;
                 else if(CAN_CMD_REQUEST==0x2A) {
                     uint32_t words=TimingSnapshot();
                     CAN_RESP[6]=(uint8_t)(words>>8); CAN_RESP[7]=(uint8_t)words;
@@ -1024,7 +1056,7 @@ int main(void)
                 else if(CAN_CMD_REQUEST==0x2F) {
                     if(CANVAL_tmp>2 || StreamingMode!=smStopped || buffer_streaming_active ||
                        (acquisition_enabled && !timing_mode)) result=LOG_ERROR(1);
-                    else if(CANVAL_tmp && (timing_mode || log_state==LOG_FAULT)) result=LOG_ERROR(1);
+                    else if(CANVAL_tmp && (timing_mode || log_state==LOG_FAULT || m2_adc_fault)) result=LOG_ERROR(1);
                     else {
                         bool was_disabled=IntMasterDisable();
                         acquisition_enabled=false; timing_mode=CANVAL_tmp; g_can_tx_pending=false; g_hasPendingSample=false; g_streamTick=0;
@@ -1089,9 +1121,10 @@ int main(void)
                     else if(!CANVAL_tmp || CANVAL_tmp>StreamBufferSize) result=LOG_ERROR(3);
                     else if(log_uuid_mask!=15 || !nonzero) result=LOG_ERROR(4);
                     else if(!LogNewIdentity()) result=LOG_ERROR(8);
+                    else if(m2_adc_fault) result=LOG_ERROR(2);
                     else if(!LogStorageReady()) { log_state=LOG_OCCUPIED; result=LOG_ERROR(5); }
                     else {
-                        acquisition_enabled=false; StreamBuffer_Reset(); g_can_tx_pending=false; g_hasPendingSample=false;
+                        acquisition_enabled=false; m2_active=false; StreamBuffer_Reset(); g_can_tx_pending=false; g_hasPendingSample=false;
                         log_limit=CANVAL_tmp; log_attempts=0; log_timeouts=0; log_state=LOG_CAPTURING;
                         acquisition_enabled=true; result=CANVAL_tmp;
                     }
@@ -1117,7 +1150,7 @@ int main(void)
                     break;
 
                 case icmdStreamRealtime:
-                    if (log_state != LOG_EMPTY || timing_mode) { CAN_RESP[4]=0x80; CAN_RESP[7]=2; CANSendMSG_Obj(CANID_tmp,CAN_RESP,32); break; }
+                    if (log_state != LOG_EMPTY || timing_mode || m2_adc_fault) { CAN_RESP[4]=0x80; CAN_RESP[7]=2; CANSendMSG_Obj(CANID_tmp,CAN_RESP,32); break; }
                     acquisition_enabled=false;
                     StreamingMode = smRealTime;
                     StreamBuffer_Reset();
@@ -1135,6 +1168,7 @@ int main(void)
                     break;
 
                 case icmdStopStreaming:
+                    if(m2_active) M2Stop(1);
                     acquisition_enabled=false; timing_mode=0;
                     if(log_state==LOG_CAPTURING) log_state=LOG_RAM_READY;
                     g_can_tx_pending=false;
@@ -1154,7 +1188,7 @@ int main(void)
                     break;
 
                 case icmdStreamBuffered:
-                    if(acquisition_enabled) { CAN_RESP[4]=0x80; CAN_RESP[7]=1; CANSendMSG_Obj(CANID_tmp,CAN_RESP,32); break; }
+                    if(acquisition_enabled || m2_active) { CAN_RESP[4]=0x80; CAN_RESP[7]=1; CANSendMSG_Obj(CANID_tmp,CAN_RESP,32); break; }
                     // Start dumping stored data from the RAM ring buffer (if present)
                     buffer_stream_count = StreamBuffer_GetCount();
                     if (buffer_stream_count > 0)

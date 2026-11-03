@@ -10,9 +10,15 @@ static bool LifecycleNonzero(const uint8_t *p)
 {
     uint32_t i; uint8_t any=0; for(i=0;i<16;i++) any|=p[i]; return any!=0;
 }
+static const uint8_t *LogJPayload(const uint8_t *p) { return p+(p[4]==2?96:64); }
+static uint64_t LogJGeneration(const uint8_t *p) { return LogGet64(LogJPayload(p)+24); }
+static uint32_t LogJOperation(const uint8_t *p) { return LogGet16(LogJPayload(p)+20); }
+static uint32_t LogJDigest(const uint8_t *p) { return LogGet32(LogJPayload(p)+16); }
+static uint32_t LogJBlocks(const uint8_t *p) { return LogGet32(LogJPayload(p)+48); }
 static bool LogJournalValid(const uint8_t *p)
 {
     uint32_t i,count;
+    if(p[4]==2) return M2JournalValid(p);
     if(!LogBlockValid((uint32_t)p) || LogGet16(p+6)!=4 || LogGet16(p+28)!=1 || LogGet16(p+30)!=2 ||
        LogGet64(p+32)!=0 || LogGet64(p+40)!=0 || LogGet32(p+48)!=1000 ||
        !LifecycleNonzero(p+8) || memcmp(p+8,p+64,16)!=0 || !LifecycleNonzero(p+96) ||
@@ -31,8 +37,8 @@ static int32_t LogJournalLatest(const uint8_t **latest, uint32_t *index)
     const uint8_t *a=(const uint8_t *)LOG_BASE, *b=a+1024;
     bool va=LogJournalValid(a), vb=LogJournalValid(b);
     if(!va && !vb) return (LogFF(a,2048)?0:-1);
-    if(va && vb && LogGet64(a+88)==LogGet64(b+88) && memcmp(a,b,1024)!=0) return -1;
-    *index=(!va || (vb && LogGet64(b+88)>LogGet64(a+88)))?1:0;
+    if(va && vb && LogJGeneration(a)==LogJGeneration(b) && memcmp(a,b,1024)!=0) return -1;
+    *index=(!va || (vb && LogJGeneration(b)>LogJGeneration(a)))?1:0;
     *latest=(*index?b:a); return 1;
 }
 static bool LogBodyBlank(void)
@@ -44,12 +50,12 @@ static bool LogStorageReady(void)
     const uint8_t *j=0; uint32_t index=0; int32_t found;
     if(!LogBodyBlank()) return false;
     found=LogJournalLatest(&j,&index);
-    return found==0 || (found==1 && LogGet16(j+84)==2);
+    return found==0 || (found==1 && LogJOperation(j)==2);
 }
 static bool LogNewIdentity(void)
 {
     const uint8_t *j=0; uint32_t index=0;
-    if(LogJournalLatest(&j,&index)==1 && memcmp(j+64,log_uuid,16)==0) return false;
+    if(LogJournalLatest(&j,&index)==1 && memcmp(LogJPayload(j),log_uuid,16)==0) return false;
     return true;
 }
 static bool LogClearFootprintSafe(const uint8_t *id, uint32_t blocks)
@@ -78,11 +84,12 @@ static uint32_t LogLifecycleRecoveryStatus(void)
     bool extra=false;
     if(!LogBoundsValid()) return LOG_ERROR(5);
     found=LogJournalLatest(&j,&index);
+    if(m[4]==2 || (found==1 && j[4]==2 && m[4]!=1)) return M2Recovery();
     count=LogVerify();
     if(found<0) return (7UL<<24)|((count&0x80000000UL)?0:count);
     if(!(count&0x80000000UL)) {
-        if(found==1 && memcmp(j+64,m+8,16)==0 && LogGet32(j+80)==LogGet32(m+1016)) {
-            if(LogGet16(j+84)==2) return (6UL<<24)|count;
+        if(found==1 && memcmp(LogJPayload(j),m+8,16)==0 && LogJDigest(j)==LogGet32(m+1016)) {
+            if(LogJOperation(j)==2) return (6UL<<24)|count;
             return (4UL<<24)|count;
         }
         blocks=LogBlocks(count);
@@ -92,9 +99,9 @@ static uint32_t LogLifecycleRecoveryStatus(void)
         }
         return ((extra?3UL:1UL)<<24)|count;
     }
-    if(found==1 && LogGet16(j+84)==2) {
+    if(found==1 && LogJOperation(j)==2) {
         if(LogBodyBlank()) return 5UL<<24;
-        if(LogClearFootprintSafe(j+64,LogGet32(j+112))) return 6UL<<24;
+        if(LogClearFootprintSafe(LogJPayload(j),LogJBlocks(j))) return 6UL<<24;
     }
     return LogRecoveryStatus();
 }
@@ -116,9 +123,10 @@ static uint32_t LogJournalWrite(uint32_t operation, uint32_t digest, uint32_t co
     const uint8_t *old=0; uint32_t old_index=0,target,result; uint64_t generation=1;
     int32_t found=LogJournalLatest(&old,&old_index); uint8_t *p=(uint8_t *)log_image;
     if(found<0) return LOG_ERROR(9);
+    if(*(const uint16_t *)(LOG_BASE+2048+4)==2) return M2JournalWrite(operation,digest,count);
     target=(found==1)?1-old_index:0;
     if(found==1) {
-        generation=LogGet64(old+88);
+        generation=LogJGeneration(old);
         if(generation==0xFFFFFFFFFFFFFFFFULL) return LOG_ERROR(9);
         generation++;
     }
@@ -135,8 +143,9 @@ static uint32_t LogJournalWrite(uint32_t operation, uint32_t digest, uint32_t co
 }
 static uint32_t LogFinishClear(const uint8_t *intent)
 {
-    uint32_t i,blocks=LogGet32(intent+112),address;
-    if(LogGet16(intent+84)!=2 || !LogClearFootprintSafe(intent+64,blocks)) return LOG_ERROR(8);
+    uint32_t i,blocks=LogJBlocks(intent),address;
+    if(intent[4]==2) return M2FinishClear(intent);
+    if(LogJOperation(intent)!=2 || !LogClearFootprintSafe(LogJPayload(intent),blocks)) return LOG_ERROR(8);
     /* Re-erase the entire authorized footprint on retry, even FF-looking pages. */
     for(i=0;i<blocks;i++) {
         address=LOG_BASE+(9+i)*1024;
@@ -156,11 +165,12 @@ static uint32_t LogLifecycleCommand(uint32_t operation, uint32_t digest)
     if(log_state==LOG_RAM_READY || log_state==LOG_CAPTURING || log_state==LOG_FAULT) return LOG_ERROR(2);
     if(acquisition_enabled || lifecycle_mask!=255 || !LifecycleNonzero(lifecycle_request) || !LifecycleNonzero(lifecycle_target)) return LOG_ERROR(2);
     lifecycle_mask=0; found=LogJournalLatest(&j,&index);
+    if(m[4]==2 || (found==1 && j[4]==2 && memcmp(LogJPayload(j),lifecycle_target,16)==0 && LogJDigest(j)==digest)) return M2Lifecycle(operation,digest);
     if(found<0) return LOG_ERROR(9);
-    if(operation==1 && found==1 && LogGet16(j+84)==2 && memcmp(j+64,lifecycle_target,16)==0 && LogGet32(j+80)==digest) return LOG_ERROR(2);
+    if(operation==1 && found==1 && LogJOperation(j)==2 && memcmp(LogJPayload(j),lifecycle_target,16)==0 && LogJDigest(j)==digest) return LOG_ERROR(2);
     count=LogVerify();
     /* ID-bound duplicate CLEAR is safe after reboot; never erase a newer record. */
-    if(operation==2 && found==1 && LogGet16(j+84)==2 && memcmp(j+64,lifecycle_target,16)==0 && LogGet32(j+80)==digest) {
+    if(operation==2 && found==1 && LogJOperation(j)==2 && memcmp(LogJPayload(j),lifecycle_target,16)==0 && LogJDigest(j)==digest) {
         if(!(count&0x80000000UL) && memcmp(m+8,lifecycle_target,16)!=0) return LOG_ERROR(8);
         if(LogBodyBlank()) { log_state=LOG_CLEARED; return 0; }
         disabled=IntMasterDisable(); result=LogFinishClear(j); if(!disabled) IntMasterEnable();
@@ -170,11 +180,11 @@ static uint32_t LogLifecycleCommand(uint32_t operation, uint32_t digest)
     if(count&0x80000000UL) return LOG_ERROR(7);
     if(memcmp(m+8,lifecycle_target,16)!=0 || LogGet32(m+1016)!=digest) return LOG_ERROR(8);
     if(!LogClearFootprintSafe(lifecycle_target,LogBlocks(count))) return LOG_ERROR(5);
-    if(operation==1 && found==1 && LogGet16(j+84)==1 && memcmp(j+64,lifecycle_target,16)==0 && LogGet32(j+80)==digest) {
+    if(operation==1 && found==1 && LogJOperation(j)==1 && memcmp(LogJPayload(j),lifecycle_target,16)==0 && LogJDigest(j)==digest) {
         log_state=LOG_ACKNOWLEDGED; return count;
     }
     /* Require matching durable ACK before normal CLEAR. No implicit discard mode. */
-    if(operation==2 && !(found==1 && LogGet16(j+84)==1 && memcmp(j+64,lifecycle_target,16)==0 && LogGet32(j+80)==digest)) return LOG_ERROR(10);
+    if(operation==2 && !(found==1 && LogJOperation(j)==1 && memcmp(LogJPayload(j),lifecycle_target,16)==0 && LogJDigest(j)==digest)) return LOG_ERROR(10);
     disabled=IntMasterDisable();
     result=LogJournalWrite(operation,digest,count);
     if(!result && operation==2) {

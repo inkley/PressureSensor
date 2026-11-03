@@ -1,3 +1,7 @@
+> Detailed specification/evaluation; distinguish proposed policy from implemented
+> behavior. For current validation and remaining work, see [current status](../CURRENT_STATUS.md).
+> Commands and source paths assume the repository root as working directory.
+
 # Recording requirements worksheet
 
 2026-11-02. User requirements captured below; mission duration and external

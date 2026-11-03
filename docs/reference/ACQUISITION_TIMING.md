@@ -1,3 +1,10 @@
+> Time/identity proposals are superseded where they conflict by [TIME_MODEL](TIME_MODEL.md).
+> Existing v1 bytes/nominal-time semantics remain unchanged; new measured metadata requires versioning.
+
+> Detailed specification/evaluation; distinguish proposed policy from implemented
+> behavior. For current validation and remaining work, see [current status](../CURRENT_STATUS.md).
+> Commands and source paths assume the repository root as working directory.
+
 # Acquisition timing requirements and evidence
 
 2026-11-02. Documentation only; no acquisition configuration changes.
@@ -148,4 +155,4 @@ basic rollover and streaming timer tests passed. Actual jitter/channel-skew
 measurement, timeout injection and timestamp/gap reporting remain pending.
 
 Related: [accounting contract](ACQUISITION_ACCOUNTING.md),
-[timer bench results](TIMER_VALIDATION.md), [storage plan](TIMING_AND_STORAGE.md).
+[timer bench results](../archive/TIMER_VALIDATION.md), [storage plan](../archive/TIMING_AND_STORAGE.md).

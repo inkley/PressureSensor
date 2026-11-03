@@ -1,3 +1,3 @@
 # Explicit application-header dependencies for command-line incremental builds.
 # CCS can regenerate Debug/Release *.d files; keep these source-owned guards.
-main.obj: ../flash_log.h ../flash_lifecycle.h ../timing_diag.h
+main.obj: ../flash_log.h ../flash_lifecycle.h ../timing_diag.h ../measured_capture.h

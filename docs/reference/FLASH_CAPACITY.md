@@ -1,3 +1,7 @@
+> Detailed specification/evaluation; distinguish proposed policy from implemented
+> behavior. For current validation and remaining work, see [current status](../CURRENT_STATUS.md).
+> Commands and source paths assume the repository root as working directory.
+
 # Provisional flash capacity budget
 
 2026-11-02. Calculations from current Debug linker map and linker command file.

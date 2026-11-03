@@ -1,8 +1,18 @@
+> Next measured encoding/budget: [METADATA_V2](METADATA_V2.md). It is a design, not enabled firmware.
+
+> Time/identity proposals are superseded where they conflict by [TIME_MODEL](TIME_MODEL.md).
+> Existing v1 bytes/nominal-time semantics remain unchanged; new measured metadata requires versioning.
+
+> Detailed specification/evaluation; distinguish proposed policy from implemented
+> behavior. For current validation and remaining work, see [current status](../CURRENT_STATUS.md).
+> Commands and source paths assume the repository root as working directory.
+
 # Recording binary format v1
 
-2026-11-02. Design contract and offline reference codec; not implemented in MCU
-or host transport. Do not write real recordings until recovery/state-machine
-implementation passes tests. Integers are little-endian, unsigned, explicitly
+2026-11-02. The .241 bounded nominal-time DATA/MANIFEST and lifecycle paths are
+implemented and bench-validated. Measured-trigger timing, event logging and UTC
+metadata described as proposed below are not implemented; see CURRENT_STATUS
+and TIME_MODEL for qualified scope. Integers are little-endian, unsigned, explicitly
 serialized. UUID fields use RFC byte order (Python UUID.bytes), not GUID mixed
 endianness. All-zero recording IDs are invalid. Offsets below are decimal.
 
@@ -167,7 +177,7 @@ Power-failure safety is a test requirement, not established by this definition.
 
 ## Lifecycle journals (64-byte record, count=1 per snapshot block)
 
-The implemented schema and transaction rules are in [FLASH_LIFECYCLE.md](FLASH_LIFECYCLE.md).
+The implemented schema and transaction rules are in [FLASH_LIFECYCLE.md](../archive/FLASH_LIFECYCLE.md).
 Payload: RecordingId(16), manifest CRC(4), operation(2), zero flags(2),
 generation(8), request UUID(16), DATA block count(4), sample count(4), zero
 reserved(8). Counts replace the previous unimplemented proposal's final 16

@@ -1,3 +1,8 @@
+> Historical checkpoint/reference, preserved for evidence. Statements about what was
+> current or pending apply to the dated sections, not the latest firmware.
+> Commands/source paths assume repository-root working directories. See
+> [current status](../CURRENT_STATUS.md) and the [acceptance procedure](../ACCEPTANCE_PROCEDURE.md).
+
 # Timing, persistent logging, and PCB deployment
 
 Planning baseline: September 22, 2026. This document incorporates the development
@@ -27,7 +32,7 @@ rollover and streaming-timer checks; see [timer validation](TIMER_VALIDATION.md)
 It counts serviced ticks, not independently measured elapsed time or successful
 acquisitions. It still wraps after about 49.7 days at nominal 1 kHz.
 
-See [acquisition accounting definitions](ACQUISITION_ACCOUNTING.md) for the
+See [acquisition accounting definitions](../reference/ACQUISITION_ACCOUNTING.md) for the
 proposed session IDs, counters, timestamp semantics, and explicit gap reporting.
 Those definitions are not yet implemented in the firmware or host protocol.
 

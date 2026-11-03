@@ -1,3 +1,8 @@
+> Historical checkpoint/reference, preserved for evidence. Statements about what was
+> current or pending apply to the dated sections, not the latest firmware.
+> Commands/source paths assume repository-root working directories. See
+> [current status](../CURRENT_STATUS.md) and the [acceptance procedure](../ACCEPTANCE_PROCEDURE.md).
+
 # GlobalTimer correction and rollover validation
 
 Firmware build 1005 (CAN version 0.0.3.237).

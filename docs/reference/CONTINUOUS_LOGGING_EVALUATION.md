@@ -1,4 +1,8 @@
-﻿# RAM staging and execution evaluation for continuous logging
+> Detailed specification/evaluation; distinguish proposed policy from implemented
+> behavior. For current validation and remaining work, see [current status](../CURRENT_STATUS.md).
+> Commands and source paths assume the repository root as working directory.
+
+# RAM staging and execution evaluation for continuous logging
 
 2026-11-02. Evaluation against the tested .240 Debug build. No firmware behavior,
 linker placement, allocation or flash contents changed by this evaluation.

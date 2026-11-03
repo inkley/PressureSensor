@@ -53,6 +53,8 @@ def verify(path):
     if vectors[3] != 0:
         raise ValueError('Reset vectors must start at zero')
     words = struct.unpack('<'+'I'*(vectors[5]//4), contents(vectors))
+    if '__STACK_BOTTOM' in symbols and symbols['__STACK_BOTTOM'] != stack[3]:
+        raise ValueError('Stack bottom symbol does not match allocation')
     stack_top = stack[3]+stack[5]
     if words[0] != stack_top or stack_top % 8 or symbols['__STACK_TOP'] != stack_top:
         raise ValueError('Initial stack pointer does not match allocated stack end/alignment')

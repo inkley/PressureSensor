@@ -71,7 +71,7 @@ static bool LogBlockValid(uint32_t address)
     const uint8_t *p;
     if(address<LOG_BASE || address>LOG_END-LOG_BLOCK || (address&1023)) return false;
     p=(const uint8_t *)address;
-    return memcmp(p,"IPLG",4)==0 && p[4]==1 && p[5]==0 &&
+    return memcmp(p,"IPLG",4)==0 && (p[4]==1 || p[4]==2) && p[5]==0 &&
            memcmp(p+1020,"CMIT",4)==0 &&
            LogGet32(p+1016)==(LogCRCFeed(0xFFFFFFFFUL,p,1016)^0xFFFFFFFFUL);
 }
@@ -103,7 +103,7 @@ static bool LogFF(const uint8_t *p, uint32_t n)
 static bool LogCommonValid(const uint8_t *p)
 {
     uint32_t i; uint8_t any=0;
-    if(!LogBlockValid((uint32_t)p) || LogGet16(p+30)!=10 || LogGet32(p+48)!=1000) return false;
+    if(p[4]!=1 || !LogBlockValid((uint32_t)p) || LogGet16(p+30)!=10 || LogGet32(p+48)!=1000) return false;
     for(i=0;i<16;i++) any|=p[8+i];
     if(!any) return false;
     for(i=52;i<64;i++) if(p[i]) return false;
@@ -111,6 +111,7 @@ static bool LogCommonValid(const uint8_t *p)
 }
 static uint32_t LogVerify(void)
 {
+    if(*(const uint16_t *)(LOG_BASE+2048+4)==2) return M2Verify();
     const uint8_t *m=(const uint8_t *)(LOG_BASE+2*LOG_BLOCK);
     uint32_t blocks,count,i,j,total=0,crc=0xFFFFFFFFUL,n;
     if(!LogBoundsValid() || !LogCommonValid(m) || LogGet16(m+6)!=3 || LogGet16(m+28)!=1) return LOG_ERROR(7);
@@ -156,6 +157,7 @@ static uint32_t LogRecoveryStatus(void)
 static bool LogStorageReady(void);
 static uint32_t LogPersist(void)
 {
+    if(m2_active) return M2Persist();
     uint32_t count=StreamBufferCount, blocks,i,j,n,base=0,crc=0xFFFFFFFFUL,result=0;
     bool disabled;
     uint8_t *p=(uint8_t *)log_image;
@@ -201,6 +203,7 @@ static uint32_t LogScratchTest(uint32_t argument)
     uint32_t manifest_crc;
     bool disabled;
     uint8_t *p=(uint8_t *)log_image;
+    if(*(const uint8_t *)(LOG_BASE+2052)!=1) return LOG_ERROR(2);
     if((argument&0xFFFFFF00UL)!=0x53524300UL || op<1 || op>5 || acquisition_enabled) return LOG_ERROR(2);
     count=LogVerify();
     if(count&0x80000000UL) return count;

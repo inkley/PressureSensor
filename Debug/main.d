@@ -37,6 +37,7 @@ main.obj: ../inc/hw_timer.h
 main.obj: ../flash_log.h
 main.obj: ../inc/hw_sysctl.h
 main.obj: ../flash_lifecycle.h
+main.obj: ../measured_capture.h
 
 ../main.c:
 
@@ -111,4 +112,6 @@ C:/ti/ccs1281/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stdarg.h:
 ../inc/hw_sysctl.h:
 
 ../flash_lifecycle.h:
+
+../measured_capture.h:
 

@@ -1,3 +1,10 @@
+> Time/identity proposals are superseded where they conflict by [TIME_MODEL](TIME_MODEL.md).
+> Existing v1 bytes/nominal-time semantics remain unchanged; new measured metadata requires versioning.
+
+> Detailed specification/evaluation; distinguish proposed policy from implemented
+> behavior. For current validation and remaining work, see [current status](../CURRENT_STATUS.md).
+> Commands and source paths assume the repository root as working directory.
+
 # Acquisition identity, counters, and gap reporting
 
 Definition agreed for implementation planning, 2026-11-02. This is a proposed
@@ -17,7 +24,8 @@ session; dump, retry, acknowledge, and persist retain the same ID and counters.
 Restart creates a new ID. A disconnected deployment must obtain IDs from a
 separately defined durable allocator before supporting autonomous capture;
 reboot must never silently reuse a volatile counter as a globally unique ID.
-Device identity is recorded separately using the MCU's factory unique ID words.
+Device identity must be provisioned separately; DID0/DID1 are not unique IDs.
+The earlier assumed factory unique-ID source is withdrawn (see record-format qualification).
 A recovered recording retains its stored ID; a new capture cannot inherit it.
 
 Firmware retains the most recent ID in RAM until explicitly replaced. Reboot

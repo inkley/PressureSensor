@@ -1,4 +1,9 @@
-﻿# Acquisition, CAN and flash timing checkpoint (.241 / build 1009)
+> Historical checkpoint/reference, preserved for evidence. Statements about what was
+> current or pending apply to the dated sections, not the latest firmware.
+> Commands/source paths assume repository-root working directories. See
+> [current status](../CURRENT_STATUS.md) and the [acceptance procedure](../ACCEPTANCE_PROCEDURE.md).
+
+# Acquisition, CAN and flash timing checkpoint (.241 / build 1009)
 
 Status: .241 acquisition-only, normal CAN and 1000-pair stopped-storage
 measurements collected on 2026-11-02. Maximum-size 4094-pair capture, persist and exact RAM/flash comparison passed;

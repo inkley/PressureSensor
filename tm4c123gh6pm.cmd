@@ -39,7 +39,7 @@ SECTIONS
     .data   :   > SRAM
     .bss    :   > SRAM
     .sysmem :   > SRAM
-    .stack  :   > SRAM, RUN_END(__STACK_TOP)
+    .stack  :   > SRAM, RUN_START(__STACK_BOTTOM), RUN_END(__STACK_TOP)
 }
 
 // __STACK_TOP is the end of the actual .stack allocation above.

@@ -1,4 +1,9 @@
-﻿# Recovery and fault-test checkpoint
+> Historical checkpoint/reference, preserved for evidence. Statements about what was
+> current or pending apply to the dated sections, not the latest firmware.
+> Commands/source paths assume repository-root working directories. See
+> [current status](../CURRENT_STATUS.md) and the [acceptance procedure](../ACCEPTANCE_PROCEDURE.md).
+
+# Recovery and fault-test checkpoint
 
 2026-11-02. Build 1007, firmware 0.0.3.239. No hardware download or scratch
 operation performed by this implementation step. Current retained 1000-pair
