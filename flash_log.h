@@ -16,6 +16,7 @@
 #define LOG_COMMITTED 3UL
 #define LOG_FAULT 4UL
 #define LOG_OCCUPIED 5UL
+#define LOG_ACKNOWLEDGED 8UL
 static volatile uint32_t log_state = LOG_EMPTY;
 static volatile uint32_t log_limit = 0;
 static volatile uint32_t log_attempts = 0;
@@ -75,18 +76,24 @@ static bool LogBlockValid(uint32_t address)
            memcmp(p+1020,"CMIT",4)==0 &&
            LogGet32(p+1016)==(LogCRCFeed(0xFFFFFFFFUL,p,1016)^0xFFFFFFFFUL);
 }
-static uint32_t LogWriteBlock(uint32_t block)
+static uint32_t LogProgramErasedBlock(uint32_t block)
 {
     uint32_t address=LOG_BASE+block*LOG_BLOCK, i;
     if(!LogBoundsValid() || block>=128 || address<LOG_BASE || address>LOG_END-LOG_BLOCK) return LOG_ERROR(5);
     for(i=0;i<256;i++) if(*(const volatile uint32_t *)(address+i*4)!=0xFFFFFFFFUL) return LOG_ERROR(5);
-    /* Erase only a pre-checked blank target, never existing recordings. */
-    if(FlashErase(address)!=0) return LOG_ERROR(6);
     if(FlashProgram(log_image,address,1020)!=0) return LOG_ERROR(6);
     if(memcmp((const void *)address,log_image,1020)!=0) return LOG_ERROR(7);
     if(FlashProgram(log_image+255,address+1020,4)!=0) return LOG_ERROR(6);
     if(memcmp((const void *)address,log_image,1024)!=0 || !LogBlockValid(address)) return LOG_ERROR(7);
     return 0;
+}
+static uint32_t LogWriteBlock(uint32_t block)
+{
+    uint32_t address=LOG_BASE+block*LOG_BLOCK, i;
+    if(!LogBoundsValid() || block>=128 || address<LOG_BASE || address>LOG_END-LOG_BLOCK) return LOG_ERROR(5);
+    for(i=0;i<256;i++) if(*(const volatile uint32_t *)(address+i*4)!=0xFFFFFFFFUL) return LOG_ERROR(5);
+    if(FlashErase(address)!=0) return LOG_ERROR(6);
+    return LogProgramErasedBlock(block);
 }
 static bool LogFF(const uint8_t *p, uint32_t n)
 {
@@ -147,24 +154,15 @@ static uint32_t LogRecoveryStatus(void)
     }
     return ((extra?3UL:1UL)<<24)|result;
 }
-static void LogRecover(void)
-{
-    uint32_t status=LogRecoveryStatus();
-    acquisition_enabled=false;
-    if(status==0) log_state=LOG_EMPTY;
-    else if(!(status&0x80000000UL) && ((status>>24)==1 || (status>>24)==3)) {
-        memcpy(log_uuid,(const void *)(LOG_BASE+2*LOG_BLOCK+8),16);
-        log_state=LOG_COMMITTED; /* RAM still empty; flash source remains authoritative */
-    } else log_state=LOG_OCCUPIED;
-}
+static bool LogStorageReady(void);
 static uint32_t LogPersist(void)
 {
     uint32_t count=StreamBufferCount, blocks,i,j,n,base=0,crc=0xFFFFFFFFUL,result=0;
     bool disabled;
     uint8_t *p=(uint8_t *)log_image;
-    if(log_state==LOG_COMMITTED) return LogVerify(); /* retry, never rewrite */
+    if(log_state==LOG_COMMITTED || log_state==LOG_ACKNOWLEDGED) return LogVerify(); /* retry, never rewrite */
     if(log_state!=LOG_RAM_READY || acquisition_enabled || !count || log_timeouts) return LOG_ERROR(2);
-    if(!LogBlank()) return LOG_ERROR(5);
+    if(!LogStorageReady()) return LOG_ERROR(5);
     blocks=LogBlocks(count);
     disabled=IntMasterDisable(); /* 20 MHz; stalled CPU/interrupts deliberately excluded from capture */
     for(i=0;i<blocks;i++) {

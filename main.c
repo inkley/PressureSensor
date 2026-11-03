@@ -34,7 +34,7 @@
  *   - CANSendMSG_Obj() allows caller-selected TX mailbox usage.
  *
  * Revision / Build:
- *   BuildVersion: 1007
+ *   BuildVersion: 1008
  ******************************************************************************/
 
 //*****************************************************************************
@@ -105,7 +105,7 @@ static void vmemcpy(volatile uint8_t *dst, const uint8_t *src, uint32_t n)
 //
 //*****************************************************************************
 
-uint32_t BuildVersion = 1007;       // Firmware version for this build
+uint32_t BuildVersion = 1008;       // Firmware version for this build
 
 // Time Out
 uint32_t TimeOutCounter = 0;
@@ -201,6 +201,7 @@ uint8_t g_can_tx_msg[8];
 
 uint32_t SensorBufferData[SENSORBUFSIZE]; // Array to hold sensor data
 #include "flash_log.h"
+#include "flash_lifecycle.h"
 //circ_bbuf_t SensorBuf;                    // Circular buffer structure instance
 
 //*****************************************************************************
@@ -949,7 +950,7 @@ int main(void)
     Init_CAN(CAN_BAUD);
 
     StreamBuffer_Reset();
-    LogRecover(); // validate and classify, never auto-format/reclaim
+    LogLifecycleBoot(); // read-only recovery; explicit clear resumes deletion
 
     //*************************************************************************
     // Global interrupt enable
@@ -988,16 +989,30 @@ int main(void)
 
             // Process the CAN command request
             CAN_CMD_REQUEST = CAN_RECV.MSG[0];
-            if (CAN_CMD_REQUEST>=0x0F && CAN_CMD_REQUEST<=0x1C)
+            if (CAN_CMD_REQUEST>=0x0F && CAN_CMD_REQUEST<=0x29)
             {
                 uint32_t result=0, k;
-                if(CAN_CMD_REQUEST==0x0F) result=0x49500102UL;
+                if(CAN_CMD_REQUEST==0x0F) result=0x49500103UL;
                 else if(CAN_CMD_REQUEST==0x16) result=(log_state<<24)|StreamBufferCount;
                 else if(CAN_CMD_REQUEST==0x17) result=LogVerify();
-                else if(CAN_CMD_REQUEST==0x1B) result=LogRecoveryStatus();
+                else if(CAN_CMD_REQUEST==0x1B) result=LogLifecycleRecoveryStatus();
                 else if(CAN_CMD_REQUEST==0x1C) {
                     if(StreamingMode!=smStopped || buffer_streaming_active) result=LOG_ERROR(1);
                     else result=LogScratchTest(CANVAL_tmp);
+                }
+                else if(CAN_CMD_REQUEST>=0x20 && CAN_CMD_REQUEST<=0x27) {
+                    if(acquisition_enabled || StreamingMode!=smStopped || buffer_streaming_active) result=LOG_ERROR(1);
+                    else {
+                        uint8_t *part=(CAN_CMD_REQUEST<0x24)?lifecycle_request:lifecycle_target;
+                        k=(CAN_CMD_REQUEST&3)*4;
+                        part[k]=(uint8_t)(CANVAL_tmp>>24); part[k+1]=(uint8_t)(CANVAL_tmp>>16);
+                        part[k+2]=(uint8_t)(CANVAL_tmp>>8); part[k+3]=(uint8_t)CANVAL_tmp;
+                        lifecycle_mask|=1UL<<(CAN_CMD_REQUEST-0x20);
+                    }
+                }
+                else if(CAN_CMD_REQUEST==0x28 || CAN_CMD_REQUEST==0x29) {
+                    if(acquisition_enabled || StreamingMode!=smStopped || buffer_streaming_active) result=LOG_ERROR(1);
+                    else result=LogLifecycleCommand(CAN_CMD_REQUEST==0x28?1:2,CANVAL_tmp);
                 }
                 else if(CAN_CMD_REQUEST==0x18)
                 {
@@ -1018,7 +1033,7 @@ int main(void)
                 else if(StreamingMode!=smStopped || buffer_streaming_active) result=LOG_ERROR(1);
                 else if(CAN_CMD_REQUEST>=0x10 && CAN_CMD_REQUEST<=0x13)
                 {
-                    if(log_state!=LOG_EMPTY) result=LOG_ERROR(2);
+                    if(log_state!=LOG_EMPTY && log_state!=LOG_CLEARED) result=LOG_ERROR(2);
                     else {
                         k=(CAN_CMD_REQUEST-0x10)*4;
                         log_uuid[k]=(uint8_t)(CANVAL_tmp>>24); log_uuid[k+1]=(uint8_t)(CANVAL_tmp>>16);
@@ -1030,10 +1045,11 @@ int main(void)
                 {
                     uint8_t nonzero=0;
                     for(k=0;k<16;k++) nonzero|=log_uuid[k];
-                    if(log_state!=LOG_EMPTY) result=LOG_ERROR(2);
+                    if(log_state!=LOG_EMPTY && log_state!=LOG_CLEARED) result=LOG_ERROR(2);
                     else if(!CANVAL_tmp || CANVAL_tmp>StreamBufferSize) result=LOG_ERROR(3);
                     else if(log_uuid_mask!=15 || !nonzero) result=LOG_ERROR(4);
-                    else if(!LogBlank()) { log_state=LOG_OCCUPIED; result=LOG_ERROR(5); }
+                    else if(!LogNewIdentity()) result=LOG_ERROR(8);
+                    else if(!LogStorageReady()) { log_state=LOG_OCCUPIED; result=LOG_ERROR(5); }
                     else {
                         acquisition_enabled=false; StreamBuffer_Reset(); g_can_tx_pending=false; g_hasPendingSample=false;
                         log_limit=CANVAL_tmp; log_attempts=0; log_timeouts=0; log_state=LOG_CAPTURING;
@@ -1134,7 +1150,7 @@ int main(void)
                     break;
 
                 case icmdStreamBufferSet:    // Set Buffer size
-                    if(log_state!=LOG_EMPTY) { CAN_RESP[4]=0x80; CAN_RESP[7]=2; CANSendMSG_Obj(CANID_tmp,CAN_RESP,32); break; }
+                    if(log_state!=LOG_EMPTY && log_state!=LOG_CLEARED) { CAN_RESP[4]=0x80; CAN_RESP[7]=2; CANSendMSG_Obj(CANID_tmp,CAN_RESP,32); break; }
                     if (CANVAL_tmp == 0 || CANVAL_tmp > SENSORBUFSIZE) CANVAL_tmp = SENSORBUFSIZE;
                     StreamBufferSize = CANVAL_tmp;
                     StreamBuffer_Reset();

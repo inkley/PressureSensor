@@ -211,3 +211,5 @@ See [binary recording format v1](RECORD_FORMAT.md) and the offline reference cod
 See [stopped-acquisition flash implementation and bench procedure](STOPPED_FLASH_TEST.md) for build 1006 and new capability-gated commands. Hardware validation pending.
 
 See [recovery and fault testing](FLASH_RECOVERY_TEST.md) for build 1007, read-only recovery, scratch-only fixtures, and pending physical power-cut validation.
+
+See [verified-transfer lifecycle](FLASH_LIFECYCLE.md) for build 1008 ACK, explicit clear, durable intent and capture restart; hardware validation pending.

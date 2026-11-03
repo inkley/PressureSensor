@@ -167,27 +167,19 @@ Power-failure safety is a test requirement, not established by this definition.
 
 ## Lifecycle journals (64-byte record, count=1 per snapshot block)
 
-Record: RecordingId(16), target manifest CRC(4), operation uint16 (1 ACK, 2 DELETE),
-flags uint16=0, generation uint64, request UUID(16), reserved zero(16). This totals
-64 bytes. Header sequence is low 32 bits of generation; header slot/time zero;
-flags NOMINAL_TIME_ONLY (journal time fields unused). Header/record IDs must match.
-Generation does not wrap; reject overflow. Highest fully valid generation wins;
-same generation with conflicting contents is RECOVERY_REQUIRED.
+The implemented schema and transaction rules are in [FLASH_LIFECYCLE.md](FLASH_LIFECYCLE.md).
+Payload: RecordingId(16), manifest CRC(4), operation(2), zero flags(2),
+generation(8), request UUID(16), DATA block count(4), sample count(4), zero
+reserved(8). Counts replace the previous unimplemented proposal's final 16
+reserved bytes. Header kind 4, flags NOMINAL_TIME_ONLY, slot/time zero; sequence
+is generation low 32 bits. Exact CRC/CMIT envelope remains as above.
 
-Alternate journal blocks: write/verify new snapshot in erased inactive block,
-then retain it while reclaiming the old snapshot. Never erase both valid copies
-first. This is a simple initial policy with potential metadata wear hotspot;
-append-journaling/wear leveling needs a later version, not an unbudgeted assumption.
-ACK retains sample blocks. DELETE is explicit authorization bound to ID, request
-and manifest CRC, never a generic erase-all. After durable DELETE, erase only
-that recording's authorized allocations, manifest last. Retain DELETE proof until
-reclamation completes; a torn erase is retried only within the authorized region.
-
-Before allowing a new capture, fully reclaim the old body/manifest while DELETE
-proof is valid, then clean journals; verify EMPTY. On boot DELETE without matching
-body is treated as deletion completion, not authority to erase a new foreign ID.
-Unknown/mixed IDs or unsupported formats require inspection, not auto-format.
-Exact interrupted-erase and journal rollover tests remain mandatory.
+ACK retains samples. Explicit CLEAR requires matching durable ACK, commits a
+DELETE snapshot, then erases only owned data and manifest last. DELETE proof is
+retained across a new capture; generations continue across records. Boot does
+not erase automatically; CLEAR_PENDING can be resumed explicitly with the
+matching saved binary. Unknown/conflicting journal data stays read-only.
+These additions do not change saved DATA/MANIFEST binary compatibility.
 
 ## Capacity and implementation status
 
@@ -200,6 +192,7 @@ sample capacity. RAM staging duration remains a separate limit.
 checks CRC vector, roundtrip, every single-byte corruption, torn prefix writes,
 semantic bounds, capacity and time overflow. Event/manifest/journal PAYLOAD
 semantics and full recording recovery are specified here but not implemented
-by that codec. No on-device writer, allocator, CRC, timing capture, protocol,
-ACK/delete implementation or power-cut test exists yet. Do not claim complete
+by that codec. On-device stopped persistence and recovery are implemented; lifecycle ACK/clear
+is implemented in build 1008 with bench testing pending. Actual timing capture,
+continuous allocation and physical power-cut validation remain pending. Do not claim complete
 recovery from passing envelope tests.
