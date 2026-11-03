@@ -34,7 +34,7 @@
  *   - CANSendMSG_Obj() allows caller-selected TX mailbox usage.
  *
  * Revision / Build:
- *   BuildVersion: 1006
+ *   BuildVersion: 1007
  ******************************************************************************/
 
 //*****************************************************************************
@@ -105,7 +105,7 @@ static void vmemcpy(volatile uint8_t *dst, const uint8_t *src, uint32_t n)
 //
 //*****************************************************************************
 
-uint32_t BuildVersion = 1006;       // Firmware version for this build
+uint32_t BuildVersion = 1007;       // Firmware version for this build
 
 // Time Out
 uint32_t TimeOutCounter = 0;
@@ -949,7 +949,7 @@ int main(void)
     Init_CAN(CAN_BAUD);
 
     StreamBuffer_Reset();
-    if (!LogBlank()) log_state=LOG_OCCUPIED; // never auto-format or adopt unverified media
+    LogRecover(); // validate and classify, never auto-format/reclaim
 
     //*************************************************************************
     // Global interrupt enable
@@ -988,12 +988,17 @@ int main(void)
 
             // Process the CAN command request
             CAN_CMD_REQUEST = CAN_RECV.MSG[0];
-            if (CAN_CMD_REQUEST>=0x0F && CAN_CMD_REQUEST<=0x18)
+            if (CAN_CMD_REQUEST>=0x0F && CAN_CMD_REQUEST<=0x1C)
             {
                 uint32_t result=0, k;
-                if(CAN_CMD_REQUEST==0x0F) result=0x49500101UL;
+                if(CAN_CMD_REQUEST==0x0F) result=0x49500102UL;
                 else if(CAN_CMD_REQUEST==0x16) result=(log_state<<24)|StreamBufferCount;
                 else if(CAN_CMD_REQUEST==0x17) result=LogVerify();
+                else if(CAN_CMD_REQUEST==0x1B) result=LogRecoveryStatus();
+                else if(CAN_CMD_REQUEST==0x1C) {
+                    if(StreamingMode!=smStopped || buffer_streaming_active) result=LOG_ERROR(1);
+                    else result=LogScratchTest(CANVAL_tmp);
+                }
                 else if(CAN_CMD_REQUEST==0x18)
                 {
                     if(acquisition_enabled || buffer_streaming_active || CANVAL_tmp>=128) result=LOG_ERROR(1);

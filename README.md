@@ -209,3 +209,5 @@ See [recording lifecycle](RECORDING_STATES.md) for capture, stop, persist, trans
 See [binary recording format v1](RECORD_FORMAT.md) and the offline reference codec/tests in tools/log_format.py and tools/test_log_format.py.
 
 See [stopped-acquisition flash implementation and bench procedure](STOPPED_FLASH_TEST.md) for build 1006 and new capability-gated commands. Hardware validation pending.
+
+See [recovery and fault testing](FLASH_RECOVERY_TEST.md) for build 1007, read-only recovery, scratch-only fixtures, and pending physical power-cut validation.

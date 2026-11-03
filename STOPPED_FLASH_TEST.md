@@ -145,3 +145,18 @@ This confirms unchanged downloaded content after retry, not a physical erase
 pulse measurement. Code path for COMMITTED retry invokes only LogVerify.
 All 25 offline checks and firmware layout verification passed again before commit.
 Clean reboot and interrupted-write testing remain pending.
+
+## Clean reboot retention: 2026-11-02
+
+User power-cycled the eval board without reflashing. Version 0.0.3.238;
+flash_status OCCUPIED with RAM count zero; verify_flash returned 1000 pairs.
+Downloaded MasterPython/Data/flash_after_reboot_01_20261102_133752_933305/.
+Agent independently validated the binary with host parser and compared against
+first pre-reboot download: samples.csv and reconstructed recording.bin are
+byte-for-byte identical. All 1000 pairs retained in order across clean reboot.
+Binary SHA256 remains
+9b5560e402f721db6377d431f9b9850e58a29e6b0915c90ebeeca22163633ac8.
+
+Clean-reboot retention passes. This is read-only recognition/download of a valid
+manifest, not complete boot state reconstruction or interrupted-write recovery.
+Interrupted writes/erases, journal ACK/CLEAR, and backpressure tests remain pending.
