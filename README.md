@@ -213,3 +213,9 @@ See [stopped-acquisition flash implementation and bench procedure](STOPPED_FLASH
 See [recovery and fault testing](FLASH_RECOVERY_TEST.md) for build 1007, read-only recovery, scratch-only fixtures, and pending physical power-cut validation.
 
 See [verified-transfer lifecycle](FLASH_LIFECYCLE.md) for build 1008 ACK, explicit clear, durable intent and capture restart; hardware validation pending.
+
+See [full-storage, overwrite and wear policies](STORAGE_POLICY.md) for default retention/backpressure rules, conservative wear budgets and pending deployment enforcement.
+
+See [continuous logging evaluation](CONTINUOUS_LOGGING_EVALUATION.md) and tools/evaluate_staging.py for RAM budgets, flash execution dependencies and implementation gates.
+
+See [timing measurements](TIMING_MEASUREMENT.md) for .241 counters, measured acquisition/CAN and 1000-pair stopped-flash results, and the pending 4094-pair bench procedure.

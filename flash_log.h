@@ -25,7 +25,6 @@ static uint8_t log_uuid[16];
 static uint32_t log_uuid_mask = 0;
 static uint32_t log_last_result = 0;
 static uint32_t log_image[256]; /* aligned, 1 KiB staging; never a second sample array */
-static volatile bool acquisition_enabled = false;
 
 static void LogPut16(uint8_t *p, uint32_t v) { p[0]=(uint8_t)v; p[1]=(uint8_t)(v>>8); }
 static void LogPut32(uint8_t *p, uint32_t v) { uint32_t i; for(i=0;i<4;i++) p[i]=(uint8_t)(v>>(8*i)); }
@@ -81,9 +80,9 @@ static uint32_t LogProgramErasedBlock(uint32_t block)
     uint32_t address=LOG_BASE+block*LOG_BLOCK, i;
     if(!LogBoundsValid() || block>=128 || address<LOG_BASE || address>LOG_END-LOG_BLOCK) return LOG_ERROR(5);
     for(i=0;i<256;i++) if(*(const volatile uint32_t *)(address+i*4)!=0xFFFFFFFFUL) return LOG_ERROR(5);
-    if(FlashProgram(log_image,address,1020)!=0) return LOG_ERROR(6);
+    if(TimingFlashProgram(log_image,address,1020)!=0) return LOG_ERROR(6);
     if(memcmp((const void *)address,log_image,1020)!=0) return LOG_ERROR(7);
-    if(FlashProgram(log_image+255,address+1020,4)!=0) return LOG_ERROR(6);
+    if(TimingFlashProgram(log_image+255,address+1020,4)!=0) return LOG_ERROR(6);
     if(memcmp((const void *)address,log_image,1024)!=0 || !LogBlockValid(address)) return LOG_ERROR(7);
     return 0;
 }
@@ -92,7 +91,7 @@ static uint32_t LogWriteBlock(uint32_t block)
     uint32_t address=LOG_BASE+block*LOG_BLOCK, i;
     if(!LogBoundsValid() || block>=128 || address<LOG_BASE || address>LOG_END-LOG_BLOCK) return LOG_ERROR(5);
     for(i=0;i<256;i++) if(*(const volatile uint32_t *)(address+i*4)!=0xFFFFFFFFUL) return LOG_ERROR(5);
-    if(FlashErase(address)!=0) return LOG_ERROR(6);
+    if(TimingFlashErase(address)!=0) return LOG_ERROR(6);
     return LogProgramErasedBlock(block);
 }
 static bool LogFF(const uint8_t *p, uint32_t n)
@@ -218,20 +217,20 @@ static uint32_t LogScratchTest(uint32_t argument)
     disabled=IntMasterDisable();
     if(op==2) {
         if(memcmp((const void *)address,p,1020)!=0 || !LogFF((const uint8_t *)(address+1020),4)) result=LOG_ERROR(2);
-        else { log_test_phase=5; if(FlashProgram(log_image+255,address+1020,4)) result=LOG_ERROR(6); }
+        else { log_test_phase=5; if(TimingFlashProgram(log_image+255,address+1020,4)) result=LOG_ERROR(6); }
     } else {
         log_test_phase=1;
-        if(FlashErase(address)) result=LOG_ERROR(6);
+        if(TimingFlashErase(address)) result=LOG_ERROR(6);
         if(!result && !LogFF((const uint8_t *)address,1024)) result=LOG_ERROR(7);
         log_test_phase=2;
         if(!result && op!=5) {
             if(op==3) p[68]^=1; /* changed BEFORE first programming, CRC deliberately stale */
             log_test_phase=3;
-            if(FlashProgram(log_image,address,1020)) result=LOG_ERROR(6);
+            if(TimingFlashProgram(log_image,address,1020)) result=LOG_ERROR(6);
             log_test_phase=4;
             if(!result && op!=1) {
                 log_test_phase=5;
-                if(FlashProgram(log_image+255,address+1020,4)) result=LOG_ERROR(6);
+                if(TimingFlashProgram(log_image+255,address+1020,4)) result=LOG_ERROR(6);
             }
         }
     }

@@ -29,9 +29,12 @@ main.obj: ../driverlib/i2c.h
 main.obj: ../driverlib/systick.h
 main.obj: ../utils/uartstdio.h
 main.obj: C:/ti/ccs1281/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stdarg.h
-main.obj: ../flash_log.h
+main.obj: ../timing_diag.h
+main.obj: ../driverlib/timer.h
 main.obj: ../driverlib/flash.h
 main.obj: ../inc/hw_types.h
+main.obj: ../inc/hw_timer.h
+main.obj: ../flash_log.h
 main.obj: ../inc/hw_sysctl.h
 main.obj: ../flash_lifecycle.h
 
@@ -93,11 +96,17 @@ C:/ti/ccs1281/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/xlocale/_string.h
 
 C:/ti/ccs1281/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stdarg.h:
 
-../flash_log.h:
+../timing_diag.h:
+
+../driverlib/timer.h:
 
 ../driverlib/flash.h:
 
 ../inc/hw_types.h:
+
+../inc/hw_timer.h:
+
+../flash_log.h:
 
 ../inc/hw_sysctl.h:
 

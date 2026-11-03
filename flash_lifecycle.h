@@ -127,7 +127,7 @@ static uint32_t LogJournalWrite(uint32_t operation, uint32_t digest, uint32_t co
     memcpy(p+64,lifecycle_target,16); LogPut32(p+80,digest); LogPut16(p+84,operation);
     LogPut64(p+88,generation); memcpy(p+96,lifecycle_request,16);
     LogPut32(p+112,LogBlocks(count)); LogPut32(p+116,count); LogSeal();
-    if(FlashErase(LOG_BASE+target*1024)) return LOG_ERROR(6);
+    if(TimingFlashErase(LOG_BASE+target*1024)) return LOG_ERROR(6);
     result=LogProgramErasedBlock(target); /* erased once above; marker still programmed last */
     if(result) return result;
     if(!LogJournalValid((const uint8_t *)(LOG_BASE+target*1024))) return LOG_ERROR(7);
@@ -140,10 +140,10 @@ static uint32_t LogFinishClear(const uint8_t *intent)
     /* Re-erase the entire authorized footprint on retry, even FF-looking pages. */
     for(i=0;i<blocks;i++) {
         address=LOG_BASE+(9+i)*1024;
-        if(FlashErase(address) || !LogFF((const uint8_t *)address,1024)) return LOG_ERROR(6);
+        if(TimingFlashErase(address) || !LogFF((const uint8_t *)address,1024)) return LOG_ERROR(6);
     }
     address=LOG_BASE+2048; /* manifest last; durable intent stays in journal */
-    if(FlashErase(address) || !LogFF((const uint8_t *)address,1024)) return LOG_ERROR(6);
+    if(TimingFlashErase(address) || !LogFF((const uint8_t *)address,1024)) return LOG_ERROR(6);
     if(!LogBodyBlank()) return LOG_ERROR(7);
     StreamBufferCount=0; StreamBufferWriteIndex=0; StreamBufferFull=false;
     log_uuid_mask=0; log_limit=0; log_attempts=0; log_timeouts=0;
