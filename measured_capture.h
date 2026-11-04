@@ -3,7 +3,8 @@ static MeasuredEvent m2_events[32];
 static uint8_t m2_domain[16],m2_domain_stage[16];
 static uint32_t m2_domain_mask=0,m2_rcc=0,m2_rcc2=0,m2_pllstat=0;
 static bool m2_bench=false,m2_bench_delayed=false;
-static uint32_t m2_bench_protected_crc=0;
+/* Profiles: 1 gap, 2 rejected ADC pair, 3 forced timeout, 4 event overflow. */
+static uint32_t m2_bench_profile=0,m2_bench_protected_crc=0;
 static bool m2_domain_assigned=false,m2_adc_fault=false,m2_capture_armed=false;
 static uint32_t m2_capture_token=0;
 static volatile uint32_t m2_attempts=0,m2_errors=0,m2_timeouts=0,m2_event_count=0,m2_event_lost=0;
@@ -22,7 +23,9 @@ static uint32_t M2StackWatermark(void)
 static void M2BenchDelay(void)
 {
     uint64_t start;
-    if(!m2_bench || m2_bench_delayed || !acquisition_enabled || m2_attempts!=16) return;
+    if(!m2_bench || !acquisition_enabled) return;
+    if(m2_bench_profile==1) { if(m2_bench_delayed || m2_attempts!=16) return; }
+    else if(m2_bench_profile!=4) return;
     m2_bench_delayed=true; start=TimingNow();
     while(TimingNow()-start<100000ULL) {} /* fixed5 ms; intentionally delays SysTick service */
 }
@@ -93,7 +96,7 @@ static uint32_t M2BuildBlock(uint32_t block)
         LogPut64(r+80,m2_accepted); LogPut32(r+112,50); LogPut32(r+116,6);
         LogPut32(r+120,log_limit); LogPut32(r+124,32);
         LogPut32(r+136,m2_rcc); LogPut32(r+140,m2_rcc2);
-        LogPut32(r+144,m2_pllstat); LogPut32(r+148,1000); LogPut32(r+152,m2_bench?1:0);
+        LogPut32(r+144,m2_pllstat); LogPut32(r+148,1000); LogPut32(r+152,m2_bench?m2_bench_profile:0);
     } else if(block>=9 && block<9+d) {
         base=(block-9)*57; n=StreamBufferCount-base; if(n>57) n=57;
         M2Header(1,1+block-9,n,16,1); LogPut64(p+48,base); LogPut64(p+56,capture_arena.measured[base].ticks);
@@ -225,6 +228,7 @@ static uint32_t M2Command(uint32_t command,uint32_t value)
         if(value==2) return 32;
         if(value==3) return m2_domain_assigned?1:0;
         if(value==8) return 0x424E4301UL;
+        if(value==9) return 0x424E4302UL;
         if(value>=4 && value<8 && m2_domain_assigned) { const uint8_t *q=m2_domain+(value-4)*4; return ((uint32_t)q[0]<<24)|((uint32_t)q[1]<<16)|((uint32_t)q[2]<<8)|q[3]; }
         return LOG_ERROR(3);
     }
@@ -265,17 +269,18 @@ static uint32_t M2Command(uint32_t command,uint32_t value)
         if(!m2_domain_assigned || log_uuid_mask!=15 || (log_state!=LOG_EMPTY && log_state!=LOG_CLEARED)) return LOG_ERROR(2);
         m2_capture_token=value; m2_capture_armed=true; return value;
     }
-    if(command==0x39) {
+    if(command>=0x39 && command<=0x3C) {
         const uint8_t *m=(const uint8_t *)(LOG_BASE+2048);
-        if(!m2_domain_assigned || m2_adc_fault || m2_active || StreamBufferCount || SysCtlClockGet()!=20000000) return LOG_ERROR(2);
+        if(m2_adc_fault) return LOG_ERROR(11);
+        if(!m2_domain_assigned || m2_active || StreamBufferCount || SysCtlClockGet()!=20000000) return LOG_ERROR(2);
         if((log_state!=LOG_COMMITTED && log_state!=LOG_ACKNOWLEDGED) || lifecycle_mask!=255 ||
            !LifecycleNonzero(lifecycle_request) || memcmp(lifecycle_request,m+8,16)==0 || memcmp(lifecycle_target,m+8,16) || LogGet32(m+1016)!=value ||
            (M2Verify()&0x80000000UL)) return LOG_ERROR(8);
         i=M2StackWatermark(); if(i<512 || i>4096) return LOG_ERROR(14);
         lifecycle_mask=0; memcpy(log_uuid,lifecycle_request,16); log_uuid_mask=15;
-        m2_bench=true; m2_bench_delayed=false; m2_bench_protected_crc=value; value=64;
+        m2_bench=true; m2_bench_profile=command-0x38; m2_bench_delayed=false; m2_bench_protected_crc=value; value=64;
     }
-    if(command==0x36 || command==0x39) {
+    if(command==0x36 || (command>=0x39 && command<=0x3C)) {
         uint8_t count_bytes[4]; uint32_t crc;
         for(i=0;i<4;i++) count_bytes[i]=(uint8_t)(value>>(24-8*i));
         crc=LogCRCFeed(0xFFFFFFFFUL,log_uuid,16); crc=LogCRCFeed(crc,m2_domain,16);

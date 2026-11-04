@@ -34,7 +34,7 @@
  *   - CANSendMSG_Obj() allows caller-selected TX mailbox usage.
  *
  * Revision / Build:
- *   BuildVersion: 1011
+ *   BuildVersion: 1012
  ******************************************************************************/
 
 //*****************************************************************************
@@ -105,7 +105,7 @@ static void vmemcpy(volatile uint8_t *dst, const uint8_t *src, uint32_t n)
 //
 //*****************************************************************************
 
-uint32_t BuildVersion = 1011;       // Firmware version for this build
+uint32_t BuildVersion = 1012;       // Firmware version for this build
 
 // Time Out
 uint32_t TimeOutCounter = 0;
@@ -466,7 +466,9 @@ void SysTickIntHandler(void)
     ADCProcessorTrigger(ADC0_BASE, 2);
     TimeOutCounter = 0;
 
-    while(!ADCIntStatus(ADC0_BASE, 2, false))
+    /* Bench timeout ignores completion at attempt16; normal timeout handler runs. */
+    while((m2_bench && m2_bench_profile==3 && m2_attempts==16) ||
+          !ADCIntStatus(ADC0_BASE, 2, false))
     {
         if(TimeOutCounter++ > ADC_ReadTimeOut)
         {
@@ -480,7 +482,8 @@ void SysTickIntHandler(void)
 
     ADCIntClear(ADC0_BASE, 2);
     if (ADCSequenceDataGet(ADC0_BASE, 2, adcVals) != 2 ||
-        ADCSequenceOverflow(ADC0_BASE, 2) || ADCSequenceUnderflow(ADC0_BASE, 2))
+        ADCSequenceOverflow(ADC0_BASE, 2) || ADCSequenceUnderflow(ADC0_BASE, 2) ||
+        (m2_bench && m2_bench_profile==2 && m2_attempts==16))
     {
         TimingResult(acquisition_began,2);
         if(m2_active && log_state==LOG_CAPTURING) { M2Record(trigger_proxy,0,0,2); return; }

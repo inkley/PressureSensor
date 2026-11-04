@@ -1,17 +1,17 @@
 ******************************************************************************
                   TI ARM Linker PC v20.2.7                     
 ******************************************************************************
->> Linked Mon Nov  2 17:28:00 2026
+>> Linked Tue Nov  3 14:19:02 2026
 
 OUTPUT FILE NAME:   <Inkley_PressureSensor.out>
-ENTRY POINT SYMBOL: "_c_int00_noargs"  address: 00009a19
+ENTRY POINT SYMBOL: "_c_int00_noargs"  address: 00009a9d
 
 
 MEMORY CONFIGURATION
 
          name            origin    length      used     unused   attr    fill
 ----------------------  --------  ---------  --------  --------  ----  --------
-  FLASH_APP             00000000   00020000  0000a156  00015eaa  R  X
+  FLASH_APP             00000000   00020000  0000a1d2  00015e2e  R  X
   SRAM                  20000000   00008000  00006230  00001dd0  RW X
 
 
@@ -19,11 +19,11 @@ SEGMENT ALLOCATION MAP
 
 run origin  load origin   length   init length attrs members
 ----------  ----------- ---------- ----------- ----- -------
-00000000    00000000    0000a158   0000a158    r-x
+00000000    00000000    0000a1d8   0000a1d8    r-x
   00000000    00000000    0000026c   0000026c    r-- .intvecs
-  0000026c    0000026c    0000984a   0000984a    r-x .text
-  00009ab8    00009ab8    00000628   00000628    r-- .const
-  0000a0e0    0000a0e0    00000078   00000078    r-- .cinit
+  0000026c    0000026c    000098ce   000098ce    r-x .text
+  00009b3c    00009b3c    00000628   00000628    r-- .const
+  0000a168    0000a168    00000070   00000070    r-- .cinit
 20000000    20000000    00006238   00000000    rw-
   20000000    20000000    0000026c   00000000    rw- .vtable
   20000270    20000270    00004ec4   00000000    rw- .bss
@@ -39,66 +39,65 @@ section   page    origin      length       input sections
 .intvecs   0    00000000    0000026c     
                   00000000    0000026c     tm4c123gh6pm_startup_ccs.obj (.intvecs)
 
-.text      0    0000026c    0000984a     
-                  0000026c    00005b8c     main.obj (.text)
-                  00005df8    00000e98     sysctl.obj (.text)
-                  00006c90    00000bac     gpio.obj (.text)
-                  0000783c    00000a28     can.obj (.text)
-                  00008264    0000071a     adc.obj (.text)
-                  0000897e    00000002     rtsv7M4_T_le_v4SPD16_eabi.lib : div0.asm.obj (.text)
-                  00008980    000005ee     timer.obj (.text)
-                  00008f6e    00000002     --HOLE-- [fill = 0]
-                  00008f70    000003c0     interrupt.obj (.text)
-                  00009330    0000034c     flash.obj (.text)
-                  0000967c    0000009c     rtsv7M4_T_le_v4SPD16_eabi.lib : memcpy_t2.asm.obj (.text)
-                  00009718    00000096                                   : ull_div_t2.asm.obj (.text)
-                  000097ae    00000002     --HOLE-- [fill = 0]
-                  000097b0    00000088     systick.obj (.text)
-                  00009838    0000007a     rtsv7M4_T_le_v4SPD16_eabi.lib : memset_t2.asm.obj (.text)
-                  000098b2    00000068                                   : copy_decompress_lzss.c.obj (.text:decompress:lzss:__TI_decompress_lzss)
-                  0000991a    00000002     --HOLE-- [fill = 0]
-                  0000991c    00000044                                   : autoinit.c.obj (.text:__TI_auto_init_nobinit_nopinit:__TI_auto_init_nobinit_nopinit)
-                  00009960    00000040                                   : u_divt2.asm.obj (.text)
-                  000099a0    0000003e     cpu.obj (.text)
-                  000099de    00000002     --HOLE-- [fill = 0]
-                  000099e0    00000038     tm4c123gh6pm_startup_ccs.obj (.text)
-                  00009a18    00000034     rtsv7M4_T_le_v4SPD16_eabi.lib : boot_cortex_m.c.obj (.text:_c_int00_noargs:_c_int00_noargs)
-                  00009a4c    00000024                                   : memcmp.c.obj (.text:memcmp)
-                  00009a70    0000001e                                   : ll_lsr_t2.asm.obj (.text)
-                  00009a8e    0000000e                                   : copy_decompress_none.c.obj (.text:decompress:none:__TI_decompress_none)
-                  00009a9c    0000000c                                   : copy_zero_init.c.obj (.text:decompress:ZI:__TI_zero_init)
-                  00009aa8    00000006     sysctl.obj (.text:SysCtlDelay)
-                  00009aae    00000004     rtsv7M4_T_le_v4SPD16_eabi.lib : pre_init.c.obj (.text:_system_pre_init)
-                  00009ab2    00000004                                   : exit.c.obj (.text:abort:abort)
+.text      0    0000026c    000098ce     
+                  0000026c    00005c10     main.obj (.text)
+                  00005e7c    00000e98     sysctl.obj (.text)
+                  00006d14    00000bac     gpio.obj (.text)
+                  000078c0    00000a28     can.obj (.text)
+                  000082e8    0000071a     adc.obj (.text)
+                  00008a02    00000002     rtsv7M4_T_le_v4SPD16_eabi.lib : div0.asm.obj (.text)
+                  00008a04    000005ee     timer.obj (.text)
+                  00008ff2    00000002     --HOLE-- [fill = 0]
+                  00008ff4    000003c0     interrupt.obj (.text)
+                  000093b4    0000034c     flash.obj (.text)
+                  00009700    0000009c     rtsv7M4_T_le_v4SPD16_eabi.lib : memcpy_t2.asm.obj (.text)
+                  0000979c    00000096                                   : ull_div_t2.asm.obj (.text)
+                  00009832    00000002     --HOLE-- [fill = 0]
+                  00009834    00000088     systick.obj (.text)
+                  000098bc    0000007a     rtsv7M4_T_le_v4SPD16_eabi.lib : memset_t2.asm.obj (.text)
+                  00009936    00000068                                   : copy_decompress_lzss.c.obj (.text:decompress:lzss:__TI_decompress_lzss)
+                  0000999e    00000002     --HOLE-- [fill = 0]
+                  000099a0    00000044                                   : autoinit.c.obj (.text:__TI_auto_init_nobinit_nopinit:__TI_auto_init_nobinit_nopinit)
+                  000099e4    00000040                                   : u_divt2.asm.obj (.text)
+                  00009a24    0000003e     cpu.obj (.text)
+                  00009a62    00000002     --HOLE-- [fill = 0]
+                  00009a64    00000038     tm4c123gh6pm_startup_ccs.obj (.text)
+                  00009a9c    00000034     rtsv7M4_T_le_v4SPD16_eabi.lib : boot_cortex_m.c.obj (.text:_c_int00_noargs:_c_int00_noargs)
+                  00009ad0    00000024                                   : memcmp.c.obj (.text:memcmp)
+                  00009af4    0000001e                                   : ll_lsr_t2.asm.obj (.text)
+                  00009b12    0000000e                                   : copy_decompress_none.c.obj (.text:decompress:none:__TI_decompress_none)
+                  00009b20    0000000c                                   : copy_zero_init.c.obj (.text:decompress:ZI:__TI_zero_init)
+                  00009b2c    00000006     sysctl.obj (.text:SysCtlDelay)
+                  00009b32    00000004     rtsv7M4_T_le_v4SPD16_eabi.lib : pre_init.c.obj (.text:_system_pre_init)
+                  00009b36    00000004                                   : exit.c.obj (.text:abort:abort)
 
-.const     0    00009ab8    00000628     
-                  00009ab8    00000120     sysctl.obj (.const:g_pppui32XTALtoVCO)
-                  00009bd8    000000c0     gpio.obj (.const:g_ppui32GPIOIntMapBlizzard)
-                  00009c98    000000c0     gpio.obj (.const:g_ppui32GPIOIntMapSnowflake)
-                  00009d58    0000009c     interrupt.obj (.const:g_pui32Regs)
-                  00009df4    00000090     gpio.obj (.const:g_pui32GPIOBaseAddrs)
-                  00009e84    0000006c     sysctl.obj (.const:g_pui32Xtals)
-                  00009ef0    00000060     timer.obj (.const:g_ppui32TimerIntMap)
-                  00009f50    00000040     timer.obj (.const:g_ppui32TimerIntMapSnowflake)
-                  00009f90    00000040     flash.obj (.const:g_pui32FMPPERegs)
-                  00009fd0    00000040     flash.obj (.const:g_pui32FMPRERegs)
-                  0000a010    00000038     sysctl.obj (.const:g_sXTALtoMEMTIM)
-                  0000a048    00000020     interrupt.obj (.const:g_pui32Priority)
-                  0000a068    00000020     can.obj (.const:g_ui16CANBitValues)
-                  0000a088    00000014     interrupt.obj (.const:g_pui32Dii16Regs)
-                  0000a09c    00000014     interrupt.obj (.const:g_pui32EnRegs)
-                  0000a0b0    00000014     interrupt.obj (.const:g_pui32PendRegs)
-                  0000a0c4    00000014     interrupt.obj (.const:g_pui32UnpendRegs)
-                  0000a0d8    00000008     sysctl.obj (.const:g_pui32VCOFrequencies)
+.const     0    00009b3c    00000628     
+                  00009b3c    00000120     sysctl.obj (.const:g_pppui32XTALtoVCO)
+                  00009c5c    000000c0     gpio.obj (.const:g_ppui32GPIOIntMapBlizzard)
+                  00009d1c    000000c0     gpio.obj (.const:g_ppui32GPIOIntMapSnowflake)
+                  00009ddc    0000009c     interrupt.obj (.const:g_pui32Regs)
+                  00009e78    00000090     gpio.obj (.const:g_pui32GPIOBaseAddrs)
+                  00009f08    0000006c     sysctl.obj (.const:g_pui32Xtals)
+                  00009f74    00000060     timer.obj (.const:g_ppui32TimerIntMap)
+                  00009fd4    00000040     timer.obj (.const:g_ppui32TimerIntMapSnowflake)
+                  0000a014    00000040     flash.obj (.const:g_pui32FMPPERegs)
+                  0000a054    00000040     flash.obj (.const:g_pui32FMPRERegs)
+                  0000a094    00000038     sysctl.obj (.const:g_sXTALtoMEMTIM)
+                  0000a0cc    00000020     interrupt.obj (.const:g_pui32Priority)
+                  0000a0ec    00000020     can.obj (.const:g_ui16CANBitValues)
+                  0000a10c    00000014     interrupt.obj (.const:g_pui32Dii16Regs)
+                  0000a120    00000014     interrupt.obj (.const:g_pui32EnRegs)
+                  0000a134    00000014     interrupt.obj (.const:g_pui32PendRegs)
+                  0000a148    00000014     interrupt.obj (.const:g_pui32UnpendRegs)
+                  0000a15c    00000008     sysctl.obj (.const:g_pui32VCOFrequencies)
 
-.cinit     0    0000a0e0    00000078     
-                  0000a0e0    0000003d     (.cinit..data.load) [load image, compression = lzss]
-                  0000a11d    00000003     --HOLE-- [fill = 0]
-                  0000a120    0000000c     (__TI_handler_table)
-                  0000a12c    00000004     --HOLE-- [fill = 0]
-                  0000a130    00000008     (.cinit..bss.load) [load image, compression = zero_init]
-                  0000a138    00000008     (.cinit..vtable.load) [load image, compression = zero_init]
-                  0000a140    00000018     (__TI_cinit_table)
+.cinit     0    0000a168    00000070     
+                  0000a168    00000038     (.cinit..data.load) [load image, compression = lzss]
+                  0000a1a0    0000000c     (__TI_handler_table)
+                  0000a1ac    00000004     --HOLE-- [fill = 0]
+                  0000a1b0    00000008     (.cinit..bss.load) [load image, compression = zero_init]
+                  0000a1b8    00000008     (.cinit..vtable.load) [load image, compression = zero_init]
+                  0000a1c0    00000018     (__TI_cinit_table)
 
 .init_array 
 *          0    00000000    00000000     UNINITIALIZED
@@ -136,10 +135,10 @@ MODULE SUMMARY
        Module                         code    ro data   rw data
        ------                         ----    -------   -------
     .\
-       main.obj                       23436   0         20416  
+       main.obj                       23568   0         20416  
        tm4c123gh6pm_startup_ccs.obj   56      620       0      
     +--+------------------------------+-------+---------+---------+
-       Total:                         23492   620       20416  
+       Total:                         23624   620       20416  
                                                                
     .\driverlib\
        sysctl.obj                     3742    460       0      
@@ -173,22 +172,22 @@ MODULE SUMMARY
        Total:                         818     0         0      
                                                                
        Stack:                         0       0         4096   
-       Linker Generated:              0       113       0      
+       Linker Generated:              0       108       0      
     +--+------------------------------+-------+---------+---------+
-       Grand Total:                   38978   2309      25136  
+       Grand Total:                   39110   2304      25136  
 
 
 LINKER GENERATED COPY TABLES
 
-__TI_cinit_table @ 0000a140 records: 3, size/record: 8, table size: 24
-	.data: load addr=0000a0e0, load size=0000003d bytes, run addr=20006138, run size=00000100 bytes, compression=lzss
-	.bss: load addr=0000a130, load size=00000008 bytes, run addr=20000270, run size=00004ec4 bytes, compression=zero_init
-	.vtable: load addr=0000a138, load size=00000008 bytes, run addr=20000000, run size=0000026c bytes, compression=zero_init
+__TI_cinit_table @ 0000a1c0 records: 3, size/record: 8, table size: 24
+	.data: load addr=0000a168, load size=00000038 bytes, run addr=20006138, run size=00000100 bytes, compression=lzss
+	.bss: load addr=0000a1b0, load size=00000008 bytes, run addr=20000270, run size=00004ec4 bytes, compression=zero_init
+	.vtable: load addr=0000a1b8, load size=00000008 bytes, run addr=20000000, run size=0000026c bytes, compression=zero_init
 
 
 LINKER GENERATED HANDLER TABLE
 
-__TI_handler_table @ 0000a120 records: 3, size/record: 4, table size: 12
+__TI_handler_table @ 0000a1a0 records: 3, size/record: 4, table size: 12
 	index: 0, handler: __TI_zero_init
 	index: 1, handler: __TI_decompress_lzss
 	index: 2, handler: __TI_decompress_none
@@ -198,299 +197,299 @@ GLOBAL SYMBOLS: SORTED ALPHABETICALLY BY Name
 
 address   name                              
 -------   ----                              
-00008961  ADCBusy                           
-00008779  ADCComparatorConfigure            
-00008849  ADCComparatorIntClear             
-000087ff  ADCComparatorIntDisable           
-0000881d  ADCComparatorIntEnable            
-0000883b  ADCComparatorIntStatus            
-00008795  ADCComparatorRegionSet            
-000087b9  ADCComparatorReset                
-00008747  ADCHardwareOversampleConfigure    
-0000839f  ADCIntClear                       
-000088c3  ADCIntClearEx                     
-00008305  ADCIntDisable                     
-0000885b  ADCIntDisableEx                   
-00008321  ADCIntEnable                      
-00008873  ADCIntEnableEx                    
-000082bf  ADCIntRegister                    
-00008347  ADCIntStatus                      
-00008891  ADCIntStatusEx                    
-000082e7  ADCIntUnregister                  
-0000891b  ADCPhaseDelayGet                  
-00008909  ADCPhaseDelaySet                  
-000085bd  ADCProcessorTrigger               
-000088f7  ADCReferenceGet                   
-000088db  ADCReferenceSet                   
-000083e9  ADCSequenceConfigure              
-00008945  ADCSequenceDMADisable             
-00008929  ADCSequenceDMAEnable              
-0000857b  ADCSequenceDataGet                
-000083cf  ADCSequenceDisable                
-000083b5  ADCSequenceEnable                 
-00008509  ADCSequenceOverflow               
-00008531  ADCSequenceOverflowClear          
-00008439  ADCSequenceStepConfigure          
-0000854d  ADCSequenceUnderflow              
-00008565  ADCSequenceUnderflowClear         
-000085e1  ADCSoftwareOversampleConfigure    
-000086d9  ADCSoftwareOversampleDataGet      
-00008619  ADCSoftwareOversampleStepConfigure
+000089e5  ADCBusy                           
+000087fd  ADCComparatorConfigure            
+000088cd  ADCComparatorIntClear             
+00008883  ADCComparatorIntDisable           
+000088a1  ADCComparatorIntEnable            
+000088bf  ADCComparatorIntStatus            
+00008819  ADCComparatorRegionSet            
+0000883d  ADCComparatorReset                
+000087cb  ADCHardwareOversampleConfigure    
+00008423  ADCIntClear                       
+00008947  ADCIntClearEx                     
+00008389  ADCIntDisable                     
+000088df  ADCIntDisableEx                   
+000083a5  ADCIntEnable                      
+000088f7  ADCIntEnableEx                    
+00008343  ADCIntRegister                    
+000083cb  ADCIntStatus                      
+00008915  ADCIntStatusEx                    
+0000836b  ADCIntUnregister                  
+0000899f  ADCPhaseDelayGet                  
+0000898d  ADCPhaseDelaySet                  
+00008641  ADCProcessorTrigger               
+0000897b  ADCReferenceGet                   
+0000895f  ADCReferenceSet                   
+0000846d  ADCSequenceConfigure              
+000089c9  ADCSequenceDMADisable             
+000089ad  ADCSequenceDMAEnable              
+000085ff  ADCSequenceDataGet                
+00008453  ADCSequenceDisable                
+00008439  ADCSequenceEnable                 
+0000858d  ADCSequenceOverflow               
+000085b5  ADCSequenceOverflowClear          
+000084bd  ADCSequenceStepConfigure          
+000085d1  ADCSequenceUnderflow              
+000085e9  ADCSequenceUnderflowClear         
+00008665  ADCSoftwareOversampleConfigure    
+0000875d  ADCSoftwareOversampleDataGet      
+0000869d  ADCSoftwareOversampleStepConfigure
 20006138  BuildVersion                      
-00009ab3  C$$EXIT                           
-00007a4d  CANBitRateSet                     
-000079e5  CANBitTimingGet                   
-00007b19  CANBitTimingSet                   
-000079d1  CANDisable                        
-000079bd  CANEnable                         
-00007d63  CANErrCntrGet                     
-00007941  CANInit                           
-00007c55  CANIntClear                       
-00007bf5  CANIntDisable                     
-00007bdf  CANIntEnable                      
-00007ba7  CANIntRegister                    
-00007c0b  CANIntStatus                      
-00007bc5  CANIntUnregister                  
-000051a1  CANListenerStd                    
-00008235  CANMessageClear                   
-0000802b  CANMessageGet                     
-00007d99  CANMessageSet                     
-00004ee9  CANPollCheck                      
-00007cc1  CANRetryGet                       
-00007c8f  CANRetrySet                       
-00005041  CANSendINT                        
-000050b5  CANSendMSG                        
-0000512d  CANSendMSG_Obj                    
-00007cdd  CANStatusGet                      
+00009b37  C$$EXIT                           
+00007ad1  CANBitRateSet                     
+00007a69  CANBitTimingGet                   
+00007b9d  CANBitTimingSet                   
+00007a55  CANDisable                        
+00007a41  CANEnable                         
+00007de7  CANErrCntrGet                     
+000079c5  CANInit                           
+00007cd9  CANIntClear                       
+00007c79  CANIntDisable                     
+00007c63  CANIntEnable                      
+00007c2b  CANIntRegister                    
+00007c8f  CANIntStatus                      
+00007c49  CANIntUnregister                  
+00005225  CANListenerStd                    
+000082b9  CANMessageClear                   
+000080af  CANMessageGet                     
+00007e1d  CANMessageSet                     
+00004f69  CANPollCheck                      
+00007d45  CANRetryGet                       
+00007d13  CANRetrySet                       
+000050c5  CANSendINT                        
+0000513d  CANSendMSG                        
+000051b9  CANSendMSG_Obj                    
+00007d61  CANStatusGet                      
 20005118  CAN_RECV                          
-000099d5  CPUbasepriGet                     
-000099c7  CPUbasepriSet                     
-000099a1  CPUcpsid                          
-000099b7  CPUcpsie                          
-000099ad  CPUprimask                        
-000099c3  CPUwfi                            
-000048dd  DelayMS                           
-00009331  FlashErase                        
-00009639  FlashIntClear                     
-000095f3  FlashIntDisable                   
-000095df  FlashIntEnable                    
-000095bb  FlashIntRegister                  
-0000961d  FlashIntStatus                    
-000095cf  FlashIntUnregister                
-0000936b  FlashProgram                      
-000093ed  FlashProtectGet                   
-00009521  FlashProtectSave                  
-00009461  FlashProtectSet                   
-00009555  FlashUserGet                      
-0000958d  FlashUserSave                     
-00009573  FlashUserSet                      
-00007817  GPIOADCTriggerDisable             
-000077f9  GPIOADCTriggerEnable              
-000077db  GPIODMATriggerDisable             
-000077bd  GPIODMATriggerEnable              
-00006d4b  GPIODirModeGet                    
-00006cef  GPIODirModeSet                    
-000072b3  GPIOIntClear                      
-00007277  GPIOIntDisable                    
-0000725d  GPIOIntEnable                     
-000072c7  GPIOIntRegister                   
-00007291  GPIOIntStatus                     
-00006e3b  GPIOIntTypeGet                    
-00006d97  GPIOIntTypeSet                    
-000072e5  GPIOIntUnregister                 
-0000710b  GPIOPadConfigGet                  
-00006ed1  GPIOPadConfigSet                  
-0000775f  GPIOPinConfigure                  
-000072ff  GPIOPinRead                       
-00007337  GPIOPinTypeADC                    
-0000735b  GPIOPinTypeCAN                    
-0000772b  GPIOPinTypeCIR                    
-0000737f  GPIOPinTypeComparator             
-000073a3  GPIOPinTypeEPI                    
-000073c7  GPIOPinTypeEthernetLED            
-000073eb  GPIOPinTypeEthernetMII            
-0000740f  GPIOPinTypeFan                    
-00007433  GPIOPinTypeGPIOInput              
-00007457  GPIOPinTypeGPIOOutput             
-0000747b  GPIOPinTypeGPIOOutputOD           
-0000749f  GPIOPinTypeI2C                    
-000074c3  GPIOPinTypeI2CSCL                 
-000076e3  GPIOPinTypeKBColumn               
-000076bf  GPIOPinTypeKBRow                  
-000074e7  GPIOPinTypeLCD                    
-00007707  GPIOPinTypeLEDSeq                 
-0000750b  GPIOPinTypeLPC                    
-0000752f  GPIOPinTypePECIRx                 
-00007553  GPIOPinTypePECITx                 
-00007577  GPIOPinTypePWM                    
-0000759b  GPIOPinTypeQEI                    
-000075bf  GPIOPinTypeSSI                    
-000075e3  GPIOPinTypeTimer                  
-00007607  GPIOPinTypeUART                   
-0000762b  GPIOPinTypeUSBAnalog              
-0000764f  GPIOPinTypeUSBDigital             
-00007673  GPIOPinTypeWakeHigh               
-00007699  GPIOPinTypeWakeLow                
-0000774f  GPIOPinWakeStatus                 
-00007317  GPIOPinWrite                      
+00009a59  CPUbasepriGet                     
+00009a4b  CPUbasepriSet                     
+00009a25  CPUcpsid                          
+00009a3b  CPUcpsie                          
+00009a31  CPUprimask                        
+00009a47  CPUwfi                            
+0000492d  DelayMS                           
+000093b5  FlashErase                        
+000096bd  FlashIntClear                     
+00009677  FlashIntDisable                   
+00009663  FlashIntEnable                    
+0000963f  FlashIntRegister                  
+000096a1  FlashIntStatus                    
+00009653  FlashIntUnregister                
+000093ef  FlashProgram                      
+00009471  FlashProtectGet                   
+000095a5  FlashProtectSave                  
+000094e5  FlashProtectSet                   
+000095d9  FlashUserGet                      
+00009611  FlashUserSave                     
+000095f7  FlashUserSet                      
+0000789b  GPIOADCTriggerDisable             
+0000787d  GPIOADCTriggerEnable              
+0000785f  GPIODMATriggerDisable             
+00007841  GPIODMATriggerEnable              
+00006dcf  GPIODirModeGet                    
+00006d73  GPIODirModeSet                    
+00007337  GPIOIntClear                      
+000072fb  GPIOIntDisable                    
+000072e1  GPIOIntEnable                     
+0000734b  GPIOIntRegister                   
+00007315  GPIOIntStatus                     
+00006ebf  GPIOIntTypeGet                    
+00006e1b  GPIOIntTypeSet                    
+00007369  GPIOIntUnregister                 
+0000718f  GPIOPadConfigGet                  
+00006f55  GPIOPadConfigSet                  
+000077e3  GPIOPinConfigure                  
+00007383  GPIOPinRead                       
+000073bb  GPIOPinTypeADC                    
+000073df  GPIOPinTypeCAN                    
+000077af  GPIOPinTypeCIR                    
+00007403  GPIOPinTypeComparator             
+00007427  GPIOPinTypeEPI                    
+0000744b  GPIOPinTypeEthernetLED            
+0000746f  GPIOPinTypeEthernetMII            
+00007493  GPIOPinTypeFan                    
+000074b7  GPIOPinTypeGPIOInput              
+000074db  GPIOPinTypeGPIOOutput             
+000074ff  GPIOPinTypeGPIOOutputOD           
+00007523  GPIOPinTypeI2C                    
+00007547  GPIOPinTypeI2CSCL                 
+00007767  GPIOPinTypeKBColumn               
+00007743  GPIOPinTypeKBRow                  
+0000756b  GPIOPinTypeLCD                    
+0000778b  GPIOPinTypeLEDSeq                 
+0000758f  GPIOPinTypeLPC                    
+000075b3  GPIOPinTypePECIRx                 
+000075d7  GPIOPinTypePECITx                 
+000075fb  GPIOPinTypePWM                    
+0000761f  GPIOPinTypeQEI                    
+00007643  GPIOPinTypeSSI                    
+00007667  GPIOPinTypeTimer                  
+0000768b  GPIOPinTypeUART                   
+000076af  GPIOPinTypeUSBAnalog              
+000076d3  GPIOPinTypeUSBDigital             
+000076f7  GPIOPinTypeWakeHigh               
+0000771d  GPIOPinTypeWakeLow                
+000077d3  GPIOPinWakeStatus                 
+0000739b  GPIOPinWrite                      
 20006140  GlobalTimer                       
 20006144  HeartbeatTrigger                  
-00004e71  Init_ADC                          
-000051d1  Init_CAN                          
-00004ecd  Init_Systick                      
-00004f61  IntCAN0Handler                    
-00009131  IntDisable                        
-000090bf  IntEnable                         
-000091a3  IntIsEnabled                      
-00008f83  IntMasterDisable                  
-00008f73  IntMasterEnable                   
-00009299  IntPendClear                      
-00009229  IntPendSet                        
-0000909b  IntPriorityGet                    
-00009013  IntPriorityGroupingGet            
-00008ff9  IntPriorityGroupingSet            
-000092f3  IntPriorityMaskGet                
-000092e7  IntPriorityMaskSet                
-0000904b  IntPrioritySet                    
-00008f93  IntRegister                       
-000092fb  IntTrigger                        
-00008fe5  IntUnregister                     
-000099e1  ResetISR                          
+00004ef1  Init_ADC                          
+00005255  Init_CAN                          
+00004f4d  Init_Systick                      
+00004fe5  IntCAN0Handler                    
+000091b5  IntDisable                        
+00009143  IntEnable                         
+00009227  IntIsEnabled                      
+00009007  IntMasterDisable                  
+00008ff7  IntMasterEnable                   
+0000931d  IntPendClear                      
+000092ad  IntPendSet                        
+0000911f  IntPriorityGet                    
+00009097  IntPriorityGroupingGet            
+0000907d  IntPriorityGroupingSet            
+00009377  IntPriorityMaskGet                
+0000936b  IntPriorityMaskSet                
+000090cf  IntPrioritySet                    
+00009017  IntRegister                       
+0000937f  IntTrigger                        
+00009069  IntUnregister                     
+00009a65  ResetISR                          
 2000614c  StreamBufferCount                 
 20006154  StreamBufferFull                  
 20006150  StreamBufferSize                  
 20006158  StreamBufferWriteIndex            
 20006148  StreamingMode                     
-00006b6f  SysCtlADCSpeedGet                 
-00006b45  SysCtlADCSpeedSet                 
-00006c3d  SysCtlAltClkConfig                
-00006401  SysCtlClockFreqSet                
-000068f1  SysCtlClockGet                    
-00006c21  SysCtlClockOutConfig              
-00006721  SysCtlClockSet                    
-00006311  SysCtlDeepSleep                   
-00006a59  SysCtlDeepSleepClockConfigSet     
-00006a3d  SysCtlDeepSleepClockSet           
-00009aa9  SysCtlDelay                       
-00005eef  SysCtlFlashSectorSizeGet          
-00005ec3  SysCtlFlashSizeGet                
-00006b99  SysCtlGPIOAHBDisable              
-00006b7d  SysCtlGPIOAHBEnable               
-000062d5  SysCtlIntClear                    
-000062bd  SysCtlIntDisable                  
-000062a9  SysCtlIntEnable                   
-00006281  SysCtlIntRegister                 
-000062e5  SysCtlIntStatus                   
-00006299  SysCtlIntUnregister               
-0000634d  SysCtlMOSCConfigSet               
-00006c0d  SysCtlNMIClear                    
-00006c01  SysCtlNMIStatus                   
-0000635d  SysCtlPIOSCCalibrate              
-00006b2b  SysCtlPWMClockGet                 
-00006b11  SysCtlPWMClockSet                 
-0000622d  SysCtlPeripheralClockGating       
-000061e5  SysCtlPeripheralDeepSleepDisable  
-00006195  SysCtlPeripheralDeepSleepEnable   
-000060d1  SysCtlPeripheralDisable           
-00006095  SysCtlPeripheralEnable            
-00005fd1  SysCtlPeripheralPowerOff          
-00005f95  SysCtlPeripheralPowerOn           
-00005f15  SysCtlPeripheralPresent           
-00005f55  SysCtlPeripheralReady             
-0000600d  SysCtlPeripheralReset             
-00006159  SysCtlPeripheralSleepDisable      
-00006115  SysCtlPeripheralSleepEnable       
-00006301  SysCtlReset                       
-000063bd  SysCtlResetBehaviorGet            
-000063ad  SysCtlResetBehaviorSet            
-00006333  SysCtlResetCauseClear             
-0000632d  SysCtlResetCauseGet               
-00005eb9  SysCtlSRAMSizeGet                 
-00006309  SysCtlSleep                       
-00006bc1  SysCtlUSBPLLDisable               
-00006bb5  SysCtlUSBPLLEnable                
-00006be9  SysCtlVoltageEventClear           
-00006bcd  SysCtlVoltageEventConfig          
-00006bdd  SysCtlVoltageEventStatus          
-000097bd  SysTickDisable                    
-000097b1  SysTickEnable                     
-00009801  SysTickIntDisable                 
-000097f5  SysTickIntEnable                  
-00004b25  SysTickIntHandler                 
-000097c9  SysTickIntRegister                
-000097e1  SysTickIntUnregister              
-0000981f  SysTickPeriodGet                  
-0000980d  SysTickPeriodSet                  
-00009827  SysTickValueGet                   
+00006bf3  SysCtlADCSpeedGet                 
+00006bc9  SysCtlADCSpeedSet                 
+00006cc1  SysCtlAltClkConfig                
+00006485  SysCtlClockFreqSet                
+00006975  SysCtlClockGet                    
+00006ca5  SysCtlClockOutConfig              
+000067a5  SysCtlClockSet                    
+00006395  SysCtlDeepSleep                   
+00006add  SysCtlDeepSleepClockConfigSet     
+00006ac1  SysCtlDeepSleepClockSet           
+00009b2d  SysCtlDelay                       
+00005f73  SysCtlFlashSectorSizeGet          
+00005f47  SysCtlFlashSizeGet                
+00006c1d  SysCtlGPIOAHBDisable              
+00006c01  SysCtlGPIOAHBEnable               
+00006359  SysCtlIntClear                    
+00006341  SysCtlIntDisable                  
+0000632d  SysCtlIntEnable                   
+00006305  SysCtlIntRegister                 
+00006369  SysCtlIntStatus                   
+0000631d  SysCtlIntUnregister               
+000063d1  SysCtlMOSCConfigSet               
+00006c91  SysCtlNMIClear                    
+00006c85  SysCtlNMIStatus                   
+000063e1  SysCtlPIOSCCalibrate              
+00006baf  SysCtlPWMClockGet                 
+00006b95  SysCtlPWMClockSet                 
+000062b1  SysCtlPeripheralClockGating       
+00006269  SysCtlPeripheralDeepSleepDisable  
+00006219  SysCtlPeripheralDeepSleepEnable   
+00006155  SysCtlPeripheralDisable           
+00006119  SysCtlPeripheralEnable            
+00006055  SysCtlPeripheralPowerOff          
+00006019  SysCtlPeripheralPowerOn           
+00005f99  SysCtlPeripheralPresent           
+00005fd9  SysCtlPeripheralReady             
+00006091  SysCtlPeripheralReset             
+000061dd  SysCtlPeripheralSleepDisable      
+00006199  SysCtlPeripheralSleepEnable       
+00006385  SysCtlReset                       
+00006441  SysCtlResetBehaviorGet            
+00006431  SysCtlResetBehaviorSet            
+000063b7  SysCtlResetCauseClear             
+000063b1  SysCtlResetCauseGet               
+00005f3d  SysCtlSRAMSizeGet                 
+0000638d  SysCtlSleep                       
+00006c45  SysCtlUSBPLLDisable               
+00006c39  SysCtlUSBPLLEnable                
+00006c6d  SysCtlVoltageEventClear           
+00006c51  SysCtlVoltageEventConfig          
+00006c61  SysCtlVoltageEventStatus          
+00009841  SysTickDisable                    
+00009835  SysTickEnable                     
+00009885  SysTickIntDisable                 
+00009879  SysTickIntEnable                  
+00004b75  SysTickIntHandler                 
+0000984d  SysTickIntRegister                
+00009865  SysTickIntUnregister              
+000098a3  SysTickPeriodGet                  
+00009891  SysTickPeriodSet                  
+000098ab  SysTickValueGet                   
 2000613c  TimeOutCounter                    
-00008f41  TimerADCEventGet                  
-00008f2f  TimerADCEventSet                  
-00008c65  TimerClockSourceGet               
-00008c3b  TimerClockSourceSet               
-00008a2f  TimerConfigure                    
-00008b4f  TimerControlEvent                 
-00008aab  TimerControlLevel                 
-00008b79  TimerControlStall                 
-00008ae1  TimerControlTrigger               
-00008baf  TimerControlWaitOnTrigger         
-00008f61  TimerDMAEventGet                  
-00008f4f  TimerDMAEventSet                  
-00008a11  TimerDisable                      
-000089f3  TimerEnable                       
-00008f0b  TimerIntClear                     
-00008ed5  TimerIntDisable                   
-00008ebd  TimerIntEnable                    
-00008e77  TimerIntRegister                  
-00008eed  TimerIntStatus                    
-00008e9f  TimerIntUnregister                
-00008d2f  TimerLoadGet                      
-00008d65  TimerLoadGet64                    
-00008d05  TimerLoadSet                      
-00008d4b  TimerLoadSet64                    
-00008e0f  TimerMatchGet                     
-00008e45  TimerMatchGet64                   
-00008de5  TimerMatchSet                     
-00008e2b  TimerMatchSet64                   
-00008c9f  TimerPrescaleGet                  
-00008ce9  TimerPrescaleMatchGet             
-00008cbb  TimerPrescaleMatchSet             
-00008c75  TimerPrescaleSet                  
-00008c25  TimerRTCDisable                   
-00008c0f  TimerRTCEnable                    
-00008f1d  TimerSynchronize                  
-00008d97  TimerValueGet                     
-00008db3  TimerValueGet64                   
+00008fc5  TimerADCEventGet                  
+00008fb3  TimerADCEventSet                  
+00008ce9  TimerClockSourceGet               
+00008cbf  TimerClockSourceSet               
+00008ab3  TimerConfigure                    
+00008bd3  TimerControlEvent                 
+00008b2f  TimerControlLevel                 
+00008bfd  TimerControlStall                 
+00008b65  TimerControlTrigger               
+00008c33  TimerControlWaitOnTrigger         
+00008fe5  TimerDMAEventGet                  
+00008fd3  TimerDMAEventSet                  
+00008a95  TimerDisable                      
+00008a77  TimerEnable                       
+00008f8f  TimerIntClear                     
+00008f59  TimerIntDisable                   
+00008f41  TimerIntEnable                    
+00008efb  TimerIntRegister                  
+00008f71  TimerIntStatus                    
+00008f23  TimerIntUnregister                
+00008db3  TimerLoadGet                      
+00008de9  TimerLoadGet64                    
+00008d89  TimerLoadSet                      
+00008dcf  TimerLoadSet64                    
+00008e93  TimerMatchGet                     
+00008ec9  TimerMatchGet64                   
+00008e69  TimerMatchSet                     
+00008eaf  TimerMatchSet64                   
+00008d23  TimerPrescaleGet                  
+00008d6d  TimerPrescaleMatchGet             
+00008d3f  TimerPrescaleMatchSet             
+00008cf9  TimerPrescaleSet                  
+00008ca9  TimerRTCDisable                   
+00008c93  TimerRTCEnable                    
+00008fa1  TimerSynchronize                  
+00008e1b  TimerValueGet                     
+00008e37  TimerValueGet64                   
 20005138  __STACK_BOTTOM                    
 20006138  __STACK_END                       
 00001000  __STACK_SIZE                      
 20006138  __STACK_TOP                       
-0000a140  __TI_CINIT_Base                   
-0000a158  __TI_CINIT_Limit                  
-0000a120  __TI_Handler_Table_Base           
-0000a12c  __TI_Handler_Table_Limit          
-0000991d  __TI_auto_init_nobinit_nopinit    
-000098b3  __TI_decompress_lzss              
-00009a8f  __TI_decompress_none              
+0000a1c0  __TI_CINIT_Base                   
+0000a1d8  __TI_CINIT_Limit                  
+0000a1a0  __TI_Handler_Table_Base           
+0000a1ac  __TI_Handler_Table_Limit          
+000099a1  __TI_auto_init_nobinit_nopinit    
+00009937  __TI_decompress_lzss              
+00009b13  __TI_decompress_none              
 ffffffff  __TI_pprof_out_hndl               
 ffffffff  __TI_prof_data_size               
 ffffffff  __TI_prof_data_start              
 00000000  __TI_static_base__                
-00009a9d  __TI_zero_init                    
-0000897f  __aeabi_idiv0                     
-0000897f  __aeabi_ldiv0                     
-00009a71  __aeabi_llsr                      
-00009839  __aeabi_memclr                    
-00009839  __aeabi_memclr4                   
-00009839  __aeabi_memclr8                   
-0000967d  __aeabi_memcpy                    
-0000967d  __aeabi_memcpy4                   
-0000967d  __aeabi_memcpy8                   
-0000983b  __aeabi_memset                    
-0000983b  __aeabi_memset4                   
-0000983b  __aeabi_memset8                   
-00009961  __aeabi_uidiv                     
-00009961  __aeabi_uidivmod                  
-00009719  __aeabi_uldivmod                  
+00009b21  __TI_zero_init                    
+00008a03  __aeabi_idiv0                     
+00008a03  __aeabi_ldiv0                     
+00009af5  __aeabi_llsr                      
+000098bd  __aeabi_memclr                    
+000098bd  __aeabi_memclr4                   
+000098bd  __aeabi_memclr8                   
+00009701  __aeabi_memcpy                    
+00009701  __aeabi_memcpy4                   
+00009701  __aeabi_memcpy8                   
+000098bf  __aeabi_memset                    
+000098bf  __aeabi_memset4                   
+000098bf  __aeabi_memset8                   
+000099e5  __aeabi_uidiv                     
+000099e5  __aeabi_uidivmod                  
+0000979d  __aeabi_uldivmod                  
 ffffffff  __binit__                         
 ffffffff  __c_args__                        
 00040000  __flash_log_end__                 
@@ -500,15 +499,15 @@ UNDEFED   __mpu_init
 20005138  __stack                           
 20000000  __start___llvm_prf_cnts           
 20000000  __stop___llvm_prf_cnts            
-00009a19  _c_int00_noargs                   
+00009a9d  _c_int00_noargs                   
 UNDEFED   _system_post_cinit                
-00009aaf  _system_pre_init                  
-00009ab3  abort                             
+00009b33  _system_pre_init                  
+00009b37  abort                             
 ffffffff  binit                             
-0000493b  bit_check                         
-000048f9  bit_clear                         
-00004925  bit_set                           
-0000490f  bit_toggle                        
+0000498b  bit_check                         
+00004949  bit_clear                         
+00004975  bit_set                           
+0000495f  bit_toggle                        
 20006164  buffer_stream_count               
 20006160  buffer_stream_index               
 20006168  buffer_stream_resp_id             
@@ -517,10 +516,10 @@ ffffffff  binit
 20006178  g_can_tx_pending                  
 20000000  g_pfnRAMVectors                   
 00000000  g_pfnVectors                      
-00005259  main                              
-00009a4d  memcmp                            
-0000967d  memcpy                            
-00009841  memset                            
+000052dd  main                              
+00009ad1  memcmp                            
+00009701  memcpy                            
+000098c5  memset                            
 
 
 GLOBAL SYMBOLS: SORTED BY Symbol Address 
@@ -530,292 +529,292 @@ address   name
 00000000  __TI_static_base__                
 00000000  g_pfnVectors                      
 00001000  __STACK_SIZE                      
-000048dd  DelayMS                           
-000048f9  bit_clear                         
-0000490f  bit_toggle                        
-00004925  bit_set                           
-0000493b  bit_check                         
-00004b25  SysTickIntHandler                 
-00004e71  Init_ADC                          
-00004ecd  Init_Systick                      
-00004ee9  CANPollCheck                      
-00004f61  IntCAN0Handler                    
-00005041  CANSendINT                        
-000050b5  CANSendMSG                        
-0000512d  CANSendMSG_Obj                    
-000051a1  CANListenerStd                    
-000051d1  Init_CAN                          
-00005259  main                              
-00005eb9  SysCtlSRAMSizeGet                 
-00005ec3  SysCtlFlashSizeGet                
-00005eef  SysCtlFlashSectorSizeGet          
-00005f15  SysCtlPeripheralPresent           
-00005f55  SysCtlPeripheralReady             
-00005f95  SysCtlPeripheralPowerOn           
-00005fd1  SysCtlPeripheralPowerOff          
-0000600d  SysCtlPeripheralReset             
-00006095  SysCtlPeripheralEnable            
-000060d1  SysCtlPeripheralDisable           
-00006115  SysCtlPeripheralSleepEnable       
-00006159  SysCtlPeripheralSleepDisable      
-00006195  SysCtlPeripheralDeepSleepEnable   
-000061e5  SysCtlPeripheralDeepSleepDisable  
-0000622d  SysCtlPeripheralClockGating       
-00006281  SysCtlIntRegister                 
-00006299  SysCtlIntUnregister               
-000062a9  SysCtlIntEnable                   
-000062bd  SysCtlIntDisable                  
-000062d5  SysCtlIntClear                    
-000062e5  SysCtlIntStatus                   
-00006301  SysCtlReset                       
-00006309  SysCtlSleep                       
-00006311  SysCtlDeepSleep                   
-0000632d  SysCtlResetCauseGet               
-00006333  SysCtlResetCauseClear             
-0000634d  SysCtlMOSCConfigSet               
-0000635d  SysCtlPIOSCCalibrate              
-000063ad  SysCtlResetBehaviorSet            
-000063bd  SysCtlResetBehaviorGet            
-00006401  SysCtlClockFreqSet                
-00006721  SysCtlClockSet                    
-000068f1  SysCtlClockGet                    
-00006a3d  SysCtlDeepSleepClockSet           
-00006a59  SysCtlDeepSleepClockConfigSet     
-00006b11  SysCtlPWMClockSet                 
-00006b2b  SysCtlPWMClockGet                 
-00006b45  SysCtlADCSpeedSet                 
-00006b6f  SysCtlADCSpeedGet                 
-00006b7d  SysCtlGPIOAHBEnable               
-00006b99  SysCtlGPIOAHBDisable              
-00006bb5  SysCtlUSBPLLEnable                
-00006bc1  SysCtlUSBPLLDisable               
-00006bcd  SysCtlVoltageEventConfig          
-00006bdd  SysCtlVoltageEventStatus          
-00006be9  SysCtlVoltageEventClear           
-00006c01  SysCtlNMIStatus                   
-00006c0d  SysCtlNMIClear                    
-00006c21  SysCtlClockOutConfig              
-00006c3d  SysCtlAltClkConfig                
-00006cef  GPIODirModeSet                    
-00006d4b  GPIODirModeGet                    
-00006d97  GPIOIntTypeSet                    
-00006e3b  GPIOIntTypeGet                    
-00006ed1  GPIOPadConfigSet                  
-0000710b  GPIOPadConfigGet                  
-0000725d  GPIOIntEnable                     
-00007277  GPIOIntDisable                    
-00007291  GPIOIntStatus                     
-000072b3  GPIOIntClear                      
-000072c7  GPIOIntRegister                   
-000072e5  GPIOIntUnregister                 
-000072ff  GPIOPinRead                       
-00007317  GPIOPinWrite                      
-00007337  GPIOPinTypeADC                    
-0000735b  GPIOPinTypeCAN                    
-0000737f  GPIOPinTypeComparator             
-000073a3  GPIOPinTypeEPI                    
-000073c7  GPIOPinTypeEthernetLED            
-000073eb  GPIOPinTypeEthernetMII            
-0000740f  GPIOPinTypeFan                    
-00007433  GPIOPinTypeGPIOInput              
-00007457  GPIOPinTypeGPIOOutput             
-0000747b  GPIOPinTypeGPIOOutputOD           
-0000749f  GPIOPinTypeI2C                    
-000074c3  GPIOPinTypeI2CSCL                 
-000074e7  GPIOPinTypeLCD                    
-0000750b  GPIOPinTypeLPC                    
-0000752f  GPIOPinTypePECIRx                 
-00007553  GPIOPinTypePECITx                 
-00007577  GPIOPinTypePWM                    
-0000759b  GPIOPinTypeQEI                    
-000075bf  GPIOPinTypeSSI                    
-000075e3  GPIOPinTypeTimer                  
-00007607  GPIOPinTypeUART                   
-0000762b  GPIOPinTypeUSBAnalog              
-0000764f  GPIOPinTypeUSBDigital             
-00007673  GPIOPinTypeWakeHigh               
-00007699  GPIOPinTypeWakeLow                
-000076bf  GPIOPinTypeKBRow                  
-000076e3  GPIOPinTypeKBColumn               
-00007707  GPIOPinTypeLEDSeq                 
-0000772b  GPIOPinTypeCIR                    
-0000774f  GPIOPinWakeStatus                 
-0000775f  GPIOPinConfigure                  
-000077bd  GPIODMATriggerEnable              
-000077db  GPIODMATriggerDisable             
-000077f9  GPIOADCTriggerEnable              
-00007817  GPIOADCTriggerDisable             
-00007941  CANInit                           
-000079bd  CANEnable                         
-000079d1  CANDisable                        
-000079e5  CANBitTimingGet                   
-00007a4d  CANBitRateSet                     
-00007b19  CANBitTimingSet                   
-00007ba7  CANIntRegister                    
-00007bc5  CANIntUnregister                  
-00007bdf  CANIntEnable                      
-00007bf5  CANIntDisable                     
-00007c0b  CANIntStatus                      
-00007c55  CANIntClear                       
-00007c8f  CANRetrySet                       
-00007cc1  CANRetryGet                       
-00007cdd  CANStatusGet                      
-00007d63  CANErrCntrGet                     
-00007d99  CANMessageSet                     
-0000802b  CANMessageGet                     
-00008235  CANMessageClear                   
-000082bf  ADCIntRegister                    
-000082e7  ADCIntUnregister                  
-00008305  ADCIntDisable                     
-00008321  ADCIntEnable                      
-00008347  ADCIntStatus                      
-0000839f  ADCIntClear                       
-000083b5  ADCSequenceEnable                 
-000083cf  ADCSequenceDisable                
-000083e9  ADCSequenceConfigure              
-00008439  ADCSequenceStepConfigure          
-00008509  ADCSequenceOverflow               
-00008531  ADCSequenceOverflowClear          
-0000854d  ADCSequenceUnderflow              
-00008565  ADCSequenceUnderflowClear         
-0000857b  ADCSequenceDataGet                
-000085bd  ADCProcessorTrigger               
-000085e1  ADCSoftwareOversampleConfigure    
-00008619  ADCSoftwareOversampleStepConfigure
-000086d9  ADCSoftwareOversampleDataGet      
-00008747  ADCHardwareOversampleConfigure    
-00008779  ADCComparatorConfigure            
-00008795  ADCComparatorRegionSet            
-000087b9  ADCComparatorReset                
-000087ff  ADCComparatorIntDisable           
-0000881d  ADCComparatorIntEnable            
-0000883b  ADCComparatorIntStatus            
-00008849  ADCComparatorIntClear             
-0000885b  ADCIntDisableEx                   
-00008873  ADCIntEnableEx                    
-00008891  ADCIntStatusEx                    
-000088c3  ADCIntClearEx                     
-000088db  ADCReferenceSet                   
-000088f7  ADCReferenceGet                   
-00008909  ADCPhaseDelaySet                  
-0000891b  ADCPhaseDelayGet                  
-00008929  ADCSequenceDMAEnable              
-00008945  ADCSequenceDMADisable             
-00008961  ADCBusy                           
-0000897f  __aeabi_idiv0                     
-0000897f  __aeabi_ldiv0                     
-000089f3  TimerEnable                       
-00008a11  TimerDisable                      
-00008a2f  TimerConfigure                    
-00008aab  TimerControlLevel                 
-00008ae1  TimerControlTrigger               
-00008b4f  TimerControlEvent                 
-00008b79  TimerControlStall                 
-00008baf  TimerControlWaitOnTrigger         
-00008c0f  TimerRTCEnable                    
-00008c25  TimerRTCDisable                   
-00008c3b  TimerClockSourceSet               
-00008c65  TimerClockSourceGet               
-00008c75  TimerPrescaleSet                  
-00008c9f  TimerPrescaleGet                  
-00008cbb  TimerPrescaleMatchSet             
-00008ce9  TimerPrescaleMatchGet             
-00008d05  TimerLoadSet                      
-00008d2f  TimerLoadGet                      
-00008d4b  TimerLoadSet64                    
-00008d65  TimerLoadGet64                    
-00008d97  TimerValueGet                     
-00008db3  TimerValueGet64                   
-00008de5  TimerMatchSet                     
-00008e0f  TimerMatchGet                     
-00008e2b  TimerMatchSet64                   
-00008e45  TimerMatchGet64                   
-00008e77  TimerIntRegister                  
-00008e9f  TimerIntUnregister                
-00008ebd  TimerIntEnable                    
-00008ed5  TimerIntDisable                   
-00008eed  TimerIntStatus                    
-00008f0b  TimerIntClear                     
-00008f1d  TimerSynchronize                  
-00008f2f  TimerADCEventSet                  
-00008f41  TimerADCEventGet                  
-00008f4f  TimerDMAEventSet                  
-00008f61  TimerDMAEventGet                  
-00008f73  IntMasterEnable                   
-00008f83  IntMasterDisable                  
-00008f93  IntRegister                       
-00008fe5  IntUnregister                     
-00008ff9  IntPriorityGroupingSet            
-00009013  IntPriorityGroupingGet            
-0000904b  IntPrioritySet                    
-0000909b  IntPriorityGet                    
-000090bf  IntEnable                         
-00009131  IntDisable                        
-000091a3  IntIsEnabled                      
-00009229  IntPendSet                        
-00009299  IntPendClear                      
-000092e7  IntPriorityMaskSet                
-000092f3  IntPriorityMaskGet                
-000092fb  IntTrigger                        
-00009331  FlashErase                        
-0000936b  FlashProgram                      
-000093ed  FlashProtectGet                   
-00009461  FlashProtectSet                   
-00009521  FlashProtectSave                  
-00009555  FlashUserGet                      
-00009573  FlashUserSet                      
-0000958d  FlashUserSave                     
-000095bb  FlashIntRegister                  
-000095cf  FlashIntUnregister                
-000095df  FlashIntEnable                    
-000095f3  FlashIntDisable                   
-0000961d  FlashIntStatus                    
-00009639  FlashIntClear                     
-0000967d  __aeabi_memcpy                    
-0000967d  __aeabi_memcpy4                   
-0000967d  __aeabi_memcpy8                   
-0000967d  memcpy                            
-00009719  __aeabi_uldivmod                  
-000097b1  SysTickEnable                     
-000097bd  SysTickDisable                    
-000097c9  SysTickIntRegister                
-000097e1  SysTickIntUnregister              
-000097f5  SysTickIntEnable                  
-00009801  SysTickIntDisable                 
-0000980d  SysTickPeriodSet                  
-0000981f  SysTickPeriodGet                  
-00009827  SysTickValueGet                   
-00009839  __aeabi_memclr                    
-00009839  __aeabi_memclr4                   
-00009839  __aeabi_memclr8                   
-0000983b  __aeabi_memset                    
-0000983b  __aeabi_memset4                   
-0000983b  __aeabi_memset8                   
-00009841  memset                            
-000098b3  __TI_decompress_lzss              
-0000991d  __TI_auto_init_nobinit_nopinit    
-00009961  __aeabi_uidiv                     
-00009961  __aeabi_uidivmod                  
-000099a1  CPUcpsid                          
-000099ad  CPUprimask                        
-000099b7  CPUcpsie                          
-000099c3  CPUwfi                            
-000099c7  CPUbasepriSet                     
-000099d5  CPUbasepriGet                     
-000099e1  ResetISR                          
-00009a19  _c_int00_noargs                   
-00009a4d  memcmp                            
-00009a71  __aeabi_llsr                      
-00009a8f  __TI_decompress_none              
-00009a9d  __TI_zero_init                    
-00009aa9  SysCtlDelay                       
-00009aaf  _system_pre_init                  
-00009ab3  C$$EXIT                           
-00009ab3  abort                             
-0000a120  __TI_Handler_Table_Base           
-0000a12c  __TI_Handler_Table_Limit          
-0000a140  __TI_CINIT_Base                   
-0000a158  __TI_CINIT_Limit                  
+0000492d  DelayMS                           
+00004949  bit_clear                         
+0000495f  bit_toggle                        
+00004975  bit_set                           
+0000498b  bit_check                         
+00004b75  SysTickIntHandler                 
+00004ef1  Init_ADC                          
+00004f4d  Init_Systick                      
+00004f69  CANPollCheck                      
+00004fe5  IntCAN0Handler                    
+000050c5  CANSendINT                        
+0000513d  CANSendMSG                        
+000051b9  CANSendMSG_Obj                    
+00005225  CANListenerStd                    
+00005255  Init_CAN                          
+000052dd  main                              
+00005f3d  SysCtlSRAMSizeGet                 
+00005f47  SysCtlFlashSizeGet                
+00005f73  SysCtlFlashSectorSizeGet          
+00005f99  SysCtlPeripheralPresent           
+00005fd9  SysCtlPeripheralReady             
+00006019  SysCtlPeripheralPowerOn           
+00006055  SysCtlPeripheralPowerOff          
+00006091  SysCtlPeripheralReset             
+00006119  SysCtlPeripheralEnable            
+00006155  SysCtlPeripheralDisable           
+00006199  SysCtlPeripheralSleepEnable       
+000061dd  SysCtlPeripheralSleepDisable      
+00006219  SysCtlPeripheralDeepSleepEnable   
+00006269  SysCtlPeripheralDeepSleepDisable  
+000062b1  SysCtlPeripheralClockGating       
+00006305  SysCtlIntRegister                 
+0000631d  SysCtlIntUnregister               
+0000632d  SysCtlIntEnable                   
+00006341  SysCtlIntDisable                  
+00006359  SysCtlIntClear                    
+00006369  SysCtlIntStatus                   
+00006385  SysCtlReset                       
+0000638d  SysCtlSleep                       
+00006395  SysCtlDeepSleep                   
+000063b1  SysCtlResetCauseGet               
+000063b7  SysCtlResetCauseClear             
+000063d1  SysCtlMOSCConfigSet               
+000063e1  SysCtlPIOSCCalibrate              
+00006431  SysCtlResetBehaviorSet            
+00006441  SysCtlResetBehaviorGet            
+00006485  SysCtlClockFreqSet                
+000067a5  SysCtlClockSet                    
+00006975  SysCtlClockGet                    
+00006ac1  SysCtlDeepSleepClockSet           
+00006add  SysCtlDeepSleepClockConfigSet     
+00006b95  SysCtlPWMClockSet                 
+00006baf  SysCtlPWMClockGet                 
+00006bc9  SysCtlADCSpeedSet                 
+00006bf3  SysCtlADCSpeedGet                 
+00006c01  SysCtlGPIOAHBEnable               
+00006c1d  SysCtlGPIOAHBDisable              
+00006c39  SysCtlUSBPLLEnable                
+00006c45  SysCtlUSBPLLDisable               
+00006c51  SysCtlVoltageEventConfig          
+00006c61  SysCtlVoltageEventStatus          
+00006c6d  SysCtlVoltageEventClear           
+00006c85  SysCtlNMIStatus                   
+00006c91  SysCtlNMIClear                    
+00006ca5  SysCtlClockOutConfig              
+00006cc1  SysCtlAltClkConfig                
+00006d73  GPIODirModeSet                    
+00006dcf  GPIODirModeGet                    
+00006e1b  GPIOIntTypeSet                    
+00006ebf  GPIOIntTypeGet                    
+00006f55  GPIOPadConfigSet                  
+0000718f  GPIOPadConfigGet                  
+000072e1  GPIOIntEnable                     
+000072fb  GPIOIntDisable                    
+00007315  GPIOIntStatus                     
+00007337  GPIOIntClear                      
+0000734b  GPIOIntRegister                   
+00007369  GPIOIntUnregister                 
+00007383  GPIOPinRead                       
+0000739b  GPIOPinWrite                      
+000073bb  GPIOPinTypeADC                    
+000073df  GPIOPinTypeCAN                    
+00007403  GPIOPinTypeComparator             
+00007427  GPIOPinTypeEPI                    
+0000744b  GPIOPinTypeEthernetLED            
+0000746f  GPIOPinTypeEthernetMII            
+00007493  GPIOPinTypeFan                    
+000074b7  GPIOPinTypeGPIOInput              
+000074db  GPIOPinTypeGPIOOutput             
+000074ff  GPIOPinTypeGPIOOutputOD           
+00007523  GPIOPinTypeI2C                    
+00007547  GPIOPinTypeI2CSCL                 
+0000756b  GPIOPinTypeLCD                    
+0000758f  GPIOPinTypeLPC                    
+000075b3  GPIOPinTypePECIRx                 
+000075d7  GPIOPinTypePECITx                 
+000075fb  GPIOPinTypePWM                    
+0000761f  GPIOPinTypeQEI                    
+00007643  GPIOPinTypeSSI                    
+00007667  GPIOPinTypeTimer                  
+0000768b  GPIOPinTypeUART                   
+000076af  GPIOPinTypeUSBAnalog              
+000076d3  GPIOPinTypeUSBDigital             
+000076f7  GPIOPinTypeWakeHigh               
+0000771d  GPIOPinTypeWakeLow                
+00007743  GPIOPinTypeKBRow                  
+00007767  GPIOPinTypeKBColumn               
+0000778b  GPIOPinTypeLEDSeq                 
+000077af  GPIOPinTypeCIR                    
+000077d3  GPIOPinWakeStatus                 
+000077e3  GPIOPinConfigure                  
+00007841  GPIODMATriggerEnable              
+0000785f  GPIODMATriggerDisable             
+0000787d  GPIOADCTriggerEnable              
+0000789b  GPIOADCTriggerDisable             
+000079c5  CANInit                           
+00007a41  CANEnable                         
+00007a55  CANDisable                        
+00007a69  CANBitTimingGet                   
+00007ad1  CANBitRateSet                     
+00007b9d  CANBitTimingSet                   
+00007c2b  CANIntRegister                    
+00007c49  CANIntUnregister                  
+00007c63  CANIntEnable                      
+00007c79  CANIntDisable                     
+00007c8f  CANIntStatus                      
+00007cd9  CANIntClear                       
+00007d13  CANRetrySet                       
+00007d45  CANRetryGet                       
+00007d61  CANStatusGet                      
+00007de7  CANErrCntrGet                     
+00007e1d  CANMessageSet                     
+000080af  CANMessageGet                     
+000082b9  CANMessageClear                   
+00008343  ADCIntRegister                    
+0000836b  ADCIntUnregister                  
+00008389  ADCIntDisable                     
+000083a5  ADCIntEnable                      
+000083cb  ADCIntStatus                      
+00008423  ADCIntClear                       
+00008439  ADCSequenceEnable                 
+00008453  ADCSequenceDisable                
+0000846d  ADCSequenceConfigure              
+000084bd  ADCSequenceStepConfigure          
+0000858d  ADCSequenceOverflow               
+000085b5  ADCSequenceOverflowClear          
+000085d1  ADCSequenceUnderflow              
+000085e9  ADCSequenceUnderflowClear         
+000085ff  ADCSequenceDataGet                
+00008641  ADCProcessorTrigger               
+00008665  ADCSoftwareOversampleConfigure    
+0000869d  ADCSoftwareOversampleStepConfigure
+0000875d  ADCSoftwareOversampleDataGet      
+000087cb  ADCHardwareOversampleConfigure    
+000087fd  ADCComparatorConfigure            
+00008819  ADCComparatorRegionSet            
+0000883d  ADCComparatorReset                
+00008883  ADCComparatorIntDisable           
+000088a1  ADCComparatorIntEnable            
+000088bf  ADCComparatorIntStatus            
+000088cd  ADCComparatorIntClear             
+000088df  ADCIntDisableEx                   
+000088f7  ADCIntEnableEx                    
+00008915  ADCIntStatusEx                    
+00008947  ADCIntClearEx                     
+0000895f  ADCReferenceSet                   
+0000897b  ADCReferenceGet                   
+0000898d  ADCPhaseDelaySet                  
+0000899f  ADCPhaseDelayGet                  
+000089ad  ADCSequenceDMAEnable              
+000089c9  ADCSequenceDMADisable             
+000089e5  ADCBusy                           
+00008a03  __aeabi_idiv0                     
+00008a03  __aeabi_ldiv0                     
+00008a77  TimerEnable                       
+00008a95  TimerDisable                      
+00008ab3  TimerConfigure                    
+00008b2f  TimerControlLevel                 
+00008b65  TimerControlTrigger               
+00008bd3  TimerControlEvent                 
+00008bfd  TimerControlStall                 
+00008c33  TimerControlWaitOnTrigger         
+00008c93  TimerRTCEnable                    
+00008ca9  TimerRTCDisable                   
+00008cbf  TimerClockSourceSet               
+00008ce9  TimerClockSourceGet               
+00008cf9  TimerPrescaleSet                  
+00008d23  TimerPrescaleGet                  
+00008d3f  TimerPrescaleMatchSet             
+00008d6d  TimerPrescaleMatchGet             
+00008d89  TimerLoadSet                      
+00008db3  TimerLoadGet                      
+00008dcf  TimerLoadSet64                    
+00008de9  TimerLoadGet64                    
+00008e1b  TimerValueGet                     
+00008e37  TimerValueGet64                   
+00008e69  TimerMatchSet                     
+00008e93  TimerMatchGet                     
+00008eaf  TimerMatchSet64                   
+00008ec9  TimerMatchGet64                   
+00008efb  TimerIntRegister                  
+00008f23  TimerIntUnregister                
+00008f41  TimerIntEnable                    
+00008f59  TimerIntDisable                   
+00008f71  TimerIntStatus                    
+00008f8f  TimerIntClear                     
+00008fa1  TimerSynchronize                  
+00008fb3  TimerADCEventSet                  
+00008fc5  TimerADCEventGet                  
+00008fd3  TimerDMAEventSet                  
+00008fe5  TimerDMAEventGet                  
+00008ff7  IntMasterEnable                   
+00009007  IntMasterDisable                  
+00009017  IntRegister                       
+00009069  IntUnregister                     
+0000907d  IntPriorityGroupingSet            
+00009097  IntPriorityGroupingGet            
+000090cf  IntPrioritySet                    
+0000911f  IntPriorityGet                    
+00009143  IntEnable                         
+000091b5  IntDisable                        
+00009227  IntIsEnabled                      
+000092ad  IntPendSet                        
+0000931d  IntPendClear                      
+0000936b  IntPriorityMaskSet                
+00009377  IntPriorityMaskGet                
+0000937f  IntTrigger                        
+000093b5  FlashErase                        
+000093ef  FlashProgram                      
+00009471  FlashProtectGet                   
+000094e5  FlashProtectSet                   
+000095a5  FlashProtectSave                  
+000095d9  FlashUserGet                      
+000095f7  FlashUserSet                      
+00009611  FlashUserSave                     
+0000963f  FlashIntRegister                  
+00009653  FlashIntUnregister                
+00009663  FlashIntEnable                    
+00009677  FlashIntDisable                   
+000096a1  FlashIntStatus                    
+000096bd  FlashIntClear                     
+00009701  __aeabi_memcpy                    
+00009701  __aeabi_memcpy4                   
+00009701  __aeabi_memcpy8                   
+00009701  memcpy                            
+0000979d  __aeabi_uldivmod                  
+00009835  SysTickEnable                     
+00009841  SysTickDisable                    
+0000984d  SysTickIntRegister                
+00009865  SysTickIntUnregister              
+00009879  SysTickIntEnable                  
+00009885  SysTickIntDisable                 
+00009891  SysTickPeriodSet                  
+000098a3  SysTickPeriodGet                  
+000098ab  SysTickValueGet                   
+000098bd  __aeabi_memclr                    
+000098bd  __aeabi_memclr4                   
+000098bd  __aeabi_memclr8                   
+000098bf  __aeabi_memset                    
+000098bf  __aeabi_memset4                   
+000098bf  __aeabi_memset8                   
+000098c5  memset                            
+00009937  __TI_decompress_lzss              
+000099a1  __TI_auto_init_nobinit_nopinit    
+000099e5  __aeabi_uidiv                     
+000099e5  __aeabi_uidivmod                  
+00009a25  CPUcpsid                          
+00009a31  CPUprimask                        
+00009a3b  CPUcpsie                          
+00009a47  CPUwfi                            
+00009a4b  CPUbasepriSet                     
+00009a59  CPUbasepriGet                     
+00009a65  ResetISR                          
+00009a9d  _c_int00_noargs                   
+00009ad1  memcmp                            
+00009af5  __aeabi_llsr                      
+00009b13  __TI_decompress_none              
+00009b21  __TI_zero_init                    
+00009b2d  SysCtlDelay                       
+00009b33  _system_pre_init                  
+00009b37  C$$EXIT                           
+00009b37  abort                             
+0000a1a0  __TI_Handler_Table_Base           
+0000a1ac  __TI_Handler_Table_Limit          
+0000a1c0  __TI_CINIT_Base                   
+0000a1d8  __TI_CINIT_Limit                  
 00020000  __flash_log_size__                
 00020000  __flash_log_start__               
 00040000  __flash_log_end__                 
